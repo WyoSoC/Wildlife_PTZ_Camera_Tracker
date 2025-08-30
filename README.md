@@ -75,8 +75,8 @@ pip install ndi-python
 All parameters are at the top of the script.
 
 ## Detection
-# Detection classes (COCO IDs or None for all)
-# Example: 0=person, 16=dog, 17=cat, 39=bottle
+### Detection classes (COCO IDs or None for all)
+### Example: 0=person, 16=dog, 17=cat, 39=bottle
 DETECT_CLASSES = None   # None = detect all classes
 
 Examples:
