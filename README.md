@@ -1,4 +1,4 @@
-# NDI Object Tracker with YOLOv8 + DeepSORT + PTZ (BirdDog)
+# NDI Object Tracker with YOLOv8 + DeepSORT + PTZ
 
 Real-time object tracking over NDI with YOLOv8 and DeepSORT, with automatic PTZ (pan/tilt/zoom) control for BirdDog PTZ cameras.
 Saves annotated recordings (with bounding boxes + HUD showing FPS and timecode) at a fixed, accurate duration.
