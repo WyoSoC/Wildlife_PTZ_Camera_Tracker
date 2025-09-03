@@ -54,7 +54,7 @@ SPEED_MIN_DT = 0.050           # ignore deltas < 50 ms (too noisy)
 os.makedirs("videos/with_box", exist_ok=True)
 
 # ---- YOLO + DeepSort ----
-model = YOLO("yolov8s.pt")
+model = YOLO("yolov8n.pt")
 if torch.cuda.is_available():
     model.to("cuda"); print("🚀 Using CUDA")
 else:
