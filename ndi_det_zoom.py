@@ -41,7 +41,7 @@ CMD_EPS = 0.05                 # only send if speed change > this
 CMD_MIN_INTERVAL = 0.05        # min seconds between command changes
 NO_TRACK_STOP_SEC = 0.3        # send stop if no confirmed track for this time
 NDI_TIMEOUT_MS = 50
-SHOW_WINDOW = True
+SHOW_WINDOW = False
 
 # ---- Speed estimation config ----
 SPEED_ENABLE = True
