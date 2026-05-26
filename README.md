@@ -1,8 +1,9 @@
 # Eagle Tracker — Web App
 
 Browser-based control panel for NDI PTZ cameras with YOLO auto-tracking.
-Runs as a single Python server on a Mac Mini (Apple Silicon) on the camera LAN;
-accessible from any browser via Tailscale.
+Runs as a single Python server on an edge computer (Raspberry Pi, NVIDIA Jetson,
+Mac Mini, or any Linux/macOS host) co-located on the camera LAN; accessible from
+any browser via Tailscale.
 
 ---
 
@@ -15,7 +16,8 @@ Browser (any device, any OS)
   │  REST /api/*  (config, recordings, camera control)       ││
   └──────────────────────────── HTTPS (Tailscale) ──────────▶││
                                                               ││
-Mac Mini / MacBook (on camera LAN)                           ││
+Edge server (on camera LAN)                                  ││
+  Raspberry Pi 5 · Jetson Orin · Mac Mini · Linux PC         ││
   ┌─ FastAPI (uvicorn :8080) ───────────────────────────────┐││
   │   api/cameras.py   — source discovery, start/stop loop  │││
   │   api/ptz.py       — WebSocket bridge                   │╔╝│
@@ -24,7 +26,10 @@ Mac Mini / MacBook (on camera LAN)                           ││
   │                                                          │   │
   │  ┌─ daemon thread: TrackLoop ──────────────────────────┐│   │
   │  │  NDIReceiver / RtspCapture                          ││   │
-  │  │  → Detector (YOLOv8 + DeepSort, MPS)               ││   │
+  │  │  → Detector (YOLOv8 + DeepSort)                    ││   │
+  │  │      CUDA (Jetson / NVIDIA GPU)                     ││   │
+  │  │      MPS  (Apple Silicon)                           ││   │
+  │  │      CPU  (Raspberry Pi / fallback)                 ││   │
   │  │  → PanController / ZoomController                  ││   │
   │  │  → VideoRecorder (CFR MP4)                         ││   │
   │  │  → session.push_frame(bgr)  ──────────────────────▶╝│   │
@@ -32,7 +37,7 @@ Mac Mini / MacBook (on camera LAN)                           ││
   │   core/session.py  — singleton, thread→asyncio bridge   │   │
   └──────────────────────────────────────────────────────────┘   │
         │  NDI SDK (native)                                       │
-        └──────────── LAN ────────── BirdDog / Bolin NDI camera ──┘
+        └──────────── LAN ────── BirdDog / Bolin NDI / Reolink ──┘
 ```
 
 ### Key design decisions
@@ -42,25 +47,47 @@ Mac Mini / MacBook (on camera LAN)                           ││
 | Video to browser | WebRTC (aiortc) | ~50–150 ms latency; no plugin required |
 | Joystick | Web Gamepad API | Zero install, works with DualSense/Xbox in Chrome/Firefox/Safari |
 | NDI capture | Server-side only | NDI SDK is a native library; cannot run in browser |
-| Compute | Apple MPS backend | Runs YOLOv8 inference on the M-series GPU automatically |
+| Inference | CUDA / MPS / CPU auto-select | Same codebase runs on Jetson, Apple Silicon, Raspberry Pi |
 | Remote access | Tailscale Serve | HTTPS without port forwarding; works across NAT |
-| Packaging | PyInstaller `.app` | Single double-click binary; no Python install needed on server |
+| Packaging | PyInstaller binary | Single executable; no Python install needed on the edge server |
+
+---
+
+## Supported Edge Servers
+
+| Hardware | OS | Inference | Notes |
+|---|---|---|---|
+| **NVIDIA Jetson Orin Nano/NX/AGX** | Ubuntu (JetPack 6) | CUDA (FP16) | Best performance/watt for edge deployment |
+| **NVIDIA desktop / laptop GPU** | Linux / Windows WSL | CUDA (FP16) | RTX 3000+ recommended for real-time YOLO |
+| **Apple Mac Mini / MacBook** | macOS 13+ (Apple Silicon) | MPS | Good throughput; NDI ecosystem well-supported on macOS |
+| **Raspberry Pi 5** | Raspberry OS (64-bit) | CPU | Sufficient for lower-res streams; no GPU inference |
+| **Any x86 Linux host** | Ubuntu 22.04+ | CUDA or CPU | Generic fallback for lab/bench setups |
+
+NDI SDK is optional — the server starts without it and supports Reolink RTSP cameras on all platforms.
 
 ---
 
 ## Prerequisites
 
-### Server (Mac Mini / MacBook)
+### Edge server
 
-- macOS 13+ on Apple Silicon (M1/M2/M3/M4)
 - Python 3.11+
-- [NDI Tools SDK](https://ndi.video/for-developers/ndi-sdk/) — install the Python wheel separately
-- [Tailscale](https://tailscale.com/) (for remote HTTPS access)
-- Node.js 20+ and npm (only needed to build the frontend; not required for production)
+- [NDI Tools SDK](https://ndi.video/for-developers/ndi-sdk/) wheel *(optional — required only for NDI cameras)*
+- [Tailscale](https://tailscale.com/) *(for remote HTTPS access)*
+- Node.js 20+ and npm *(build-time only — not needed at runtime)*
+
+Platform-specific GPU prerequisites:
+
+| Platform | Prerequisite |
+|---|---|
+| Jetson (JetPack 6) | JetPack installs CUDA, cuDNN automatically |
+| NVIDIA Linux | [CUDA Toolkit 12.x](https://developer.nvidia.com/cuda-downloads) + driver ≥ 525 |
+| Apple Silicon | No extra install — MPS ships with macOS + PyTorch |
+| Raspberry Pi / CPU | No GPU prerequisite |
 
 ### Browser (client)
 
-No installation. Chrome, Firefox, or Safari on any OS.
+No installation required. Chrome, Firefox, or Safari on any OS.
 Use a USB or Bluetooth gamepad for joystick control (DualSense, Xbox, generic HID).
 
 ---
@@ -75,23 +102,24 @@ Choose the requirements file for your hardware:
 |---|---|
 | macOS (Apple Silicon, MPS) | `pip install -r requirements.txt` |
 | Linux desktop/laptop NVIDIA GPU | `pip install -r requirements-cuda.txt` |
-| Jetson Orin Nano (JetPack 6) | See `requirements-jetson.txt` for two-step install |
+| Jetson Orin Nano/NX/AGX (JetPack 6) | See `requirements-jetson.txt` — two-step install |
+| Raspberry Pi / CPU-only | `pip install -r requirements.txt` |
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 
-# macOS:
+# macOS or Raspberry Pi / CPU:
 pip install -r requirements.txt
 
 # Linux NVIDIA (CUDA 12.4):
 pip install -r requirements-cuda.txt
 
-# Jetson Orin Nano (JetPack 6):
+# Jetson Orin (JetPack 6):
 pip install torch torchvision --index-url https://pypi.jetson-ai-lab.dev/jp6/cu126
 pip install -r requirements-jetson.txt
 
-# Install NDI SDK wheel (path varies by SDK version):
+# NDI cameras (optional — install the NDI Tools SDK wheel):
 # pip install /path/to/NDIlib-*.whl
 
 uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
@@ -121,11 +149,8 @@ npm run build      # outputs to ../backend/static (see vite.config.ts)
 
 # 2. Run the server (serves the SPA automatically)
 cd ..
-python -m backend.main
-# or:  uvicorn backend.main:app --host 0.0.0.0 --port 8080
+uvicorn backend.main:app --host 0.0.0.0 --port 8080
 ```
-
-The server opens `http://localhost:8080` in the default browser automatically.
 
 ---
 
@@ -137,23 +162,21 @@ Priority order: **CUDA → MPS → CPU**.
 | Hardware | Device string | Notes |
 |---|---|---|
 | NVIDIA desktop/laptop GPU | `cuda` or `cuda:0` | FP16 enabled by default (~2× speedup) |
-| Jetson Orin Nano / NX / AGX | `cuda` | FP16 critical — 8 GB unified memory |
+| Jetson Orin Nano / NX / AGX | `cuda` | FP16 critical — unified memory shared with CPU |
 | Apple Silicon M-series | `mps` | FP16 disabled (model-dependent stability) |
-| CPU fallback | `cpu` | Usable for testing; ~5–10× slower than GPU |
+| Raspberry Pi / CPU fallback | `cpu` | Use `yolov8n.pt`; expect ~3–8 fps at 480×288 |
 
-Override via `DeviceConfig` in session config (API: `PUT /api/cameras/config`),
-or set it in a custom profile in `backend/core/config.py`:
+Override via `DeviceConfig` in a custom profile (`backend/core/config.py`):
 
 ```python
 from backend.core.config import AppConfig, DeviceConfig
 
 my_config = AppConfig(
     device=DeviceConfig(device="cuda:0", half=True),
-    # ... other sub-configs
 )
 ```
 
-### TensorRT (Jetson — optional, 2–4× speedup)
+### TensorRT (Jetson — optional, 2–4× additional speedup)
 
 Export the YOLO model to a TensorRT engine once, then pass the `.engine` file
 as `model_path` in `TrackConfig`:
@@ -167,20 +190,19 @@ model.export(format="engine", half=True, device=0, imgsz=640)
 EOF
 ```
 
-Then set `track.model_path = "yolov8n.engine"` in your profile or via the Camera
-config API.
+Then set `track.model_path = "yolov8n.engine"` in your profile or via `PUT /api/cameras/config`.
 
 ---
 
 ## Tailscale (Remote HTTPS Access)
 
 ```bash
-# On the Mac Mini — run once after tailscale up:
+# Run once on the edge server after `tailscale up`:
 tailscale serve https / http://localhost:8080
 ```
 
 Your browser can then reach the app at `https://<machine-name>.tailXXXX.ts.net` from
-any device on the same Tailscale network with no port forwarding.
+any device on the same Tailscale network with no port forwarding or firewall rules.
 WebRTC ICE negotiation works over Tailscale peer addresses automatically.
 
 ---
@@ -197,7 +219,7 @@ All endpoints are prefixed `/api/`.
 | `POST` | `/cameras/connect` | Set active source (`source_match`, `source_type`, `rtsp_url`) |
 | `POST` | `/cameras/start` | Start background capture + tracking loop |
 | `POST` | `/cameras/stop` | Stop the loop |
-| `GET` | `/cameras/status` | `{connected, running, source_name, mode}` |
+| `GET` | `/cameras/status` | `{connected, running, source_name, mode, device, device_name}` |
 | `POST` | `/cameras/disconnect` | Alias for stop |
 | `GET` | `/cameras/config` | Full `AppConfig` as JSON |
 | `PUT` | `/cameras/config` | Partial update — any subset of config fields |
@@ -317,8 +339,8 @@ All fields are optional — only supplied fields are updated.
 
 | Profile | Camera | Process res | Model | Record |
 |---|---|---|---|---|
-| `birddog` | BirdDog P200 | 480×288 | yolov8s.pt | 40 s @ 30 fps |
-| `bolin` | Bolin PTZ | 720×488 | yolov8n.pt | 20 s @ 20 fps |
+| `birddog` | BirdDog P200 (NDI) | 480×288 | yolov8s.pt | 40 s @ 30 fps |
+| `bolin` | Bolin PTZ (NDI) | 720×488 | yolov8n.pt | 20 s @ 20 fps |
 
 ---
 
@@ -347,7 +369,8 @@ Deadzone: 0.1 (values below ignored).
 ├── backend/
 │   ├── core/
 │   │   ├── config.py        # AppConfig dataclass hierarchy + named profiles
-│   │   ├── ndi_io.py        # NDI source discovery + NDIReceiver capture
+│   │   ├── device.py        # select_device(), device_info() — CUDA/MPS/CPU
+│   │   ├── ndi_io.py        # NDI source discovery + NDIReceiver (optional SDK)
 │   │   ├── ptz_cam.py       # NDIPTZCamera — pan/tilt/zoom/stop/autofocus
 │   │   ├── detection.py     # Detector (YOLOv8+DeepSort), BBox, SpeedEstimator
 │   │   ├── controllers.py   # PanController, ZoomController (EMA, rate-limiting)
@@ -361,20 +384,22 @@ Deadzone: 0.1 (values below ignored).
 │   │   ├── webrtc.py        # /api/webrtc/offer  (SDP exchange, NDIVideoTrack)
 │   │   └── recordings.py    # /api/recordings/* + /api/logs/*
 │   ├── main.py              # FastAPI app, lifespan, SPA fallback, entry point
-│   └── requirements.txt
-└── frontend/
-    └── src/
-        ├── api/client.ts    # Typed fetch wrappers for all REST endpoints
-        ├── types/index.ts   # Shared TypeScript interfaces
-        ├── hooks/
-        │   ├── useWebSocket.ts  # Auto-reconnecting WS; exposes sendPanTilt etc.
-        │   ├── useWebRTC.ts     # RTCPeerConnection lifecycle; returns stream
-        │   └── useGamepad.ts    # rAF-based Gamepad API polling; deadzone
-        ├── tabs/
-        │   ├── CameraTab.tsx    # Source discovery, connect, config sliders
-        │   ├── ControlTab.tsx   # Live video, joystick status, mode, recording
-        │   └── LogsTab.tsx      # Recordings browser + inline player, CSV logs
-        └── App.tsx              # Tab shell; single WS instance shared to tabs
+│   ├── requirements.txt         # macOS / Raspberry Pi / CPU
+│   ├── requirements-cuda.txt    # Linux NVIDIA GPU (CUDA 12.4)
+│   └── requirements-jetson.txt  # Jetson Orin (JetPack 6)
+├── frontend/
+│   └── src/
+│       ├── api/client.ts    # Typed fetch wrappers for all REST endpoints
+│       ├── types/index.ts   # Shared TypeScript interfaces
+│       ├── hooks/
+│       │   ├── useWebSocket.ts  # Auto-reconnecting WS; exposes sendPanTilt etc.
+│       │   ├── useWebRTC.ts     # RTCPeerConnection lifecycle; returns stream
+│       │   └── useGamepad.ts    # rAF-based Gamepad API polling; deadzone
+│       ├── tabs/
+│       │   ├── CameraTab.tsx    # Source discovery, connect, config sliders
+│       │   ├── ControlTab.tsx   # Live video, joystick status, mode, recording
+│       │   └── LogsTab.tsx      # Recordings browser + inline player, CSV logs
+│       └── App.tsx              # Tab shell; single WS instance shared to tabs
 ├── archive/
 │   ├── ndi_det.py               # Original YOLO+DeepSort pan+zoom script
 │   ├── ndi_det_zoom.py          # Enhanced: multi-class, speed estimation
