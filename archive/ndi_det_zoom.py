@@ -17,7 +17,7 @@ REC_FPS = 20                   # fixed CFR for saved file (choose 15/20/30)
 FRAME_PERIOD = 1.0 / REC_FPS
 
 # General detection (COCO IDs or None for all)
-# Example: 0=person, 2=car, 16=dog, 17=cat, 39=bottle
+# Example: 0=person, 2=car, 16=dog, 17=cat, 39=bottle, 14=bird
 DETECT_CLASSES = 0  # None = detect all
 #CONF_THRESH =.3
 
