@@ -1,5 +1,8 @@
 from __future__ import annotations
-import NDIlib as ndi
+try:
+    import NDIlib as ndi
+except ImportError:
+    ndi = None  # type: ignore[assignment]
 
 
 class NDIPTZCamera:

@@ -73,6 +73,19 @@ export function CameraTab() {
     }
   }, [reolinkUrl])
 
+  const startCamera = useCallback(async () => {
+    try {
+      setLoopLoading(true)
+      await api.cameras.start()
+      const s = await api.cameras.status()
+      setCamStatus(s)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoopLoading(false)
+    }
+  }, [])
+
   const stopCamera = useCallback(async () => {
     try {
       setLoopLoading(true)

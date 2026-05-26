@@ -1,11 +1,29 @@
 from __future__ import annotations
+import logging
 import time
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
-import NDIlib as ndi
+
+# NDIlib is a native optional dependency (NDI Tools SDK wheel).
+# The server starts normally without it; NDI features raise RuntimeError at
+# call time so Reolink / RTSP connections still work.
+try:
+    import NDIlib as ndi
+    _NDI_AVAILABLE = True
+except ImportError:
+    ndi = None  # type: ignore[assignment]
+    _NDI_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+if not _NDI_AVAILABLE:
+    logger.warning(
+        "NDIlib not found — NDI source discovery and NDI camera connections "
+        "are disabled. Install the NDI Tools SDK wheel to enable them. "
+        "Reolink RTSP connections are unaffected."
+    )
 
 
 @dataclass
@@ -15,6 +33,11 @@ class NDISourceInfo:
 
 def ndi_discover(wait_sec: float = 2.0) -> list[NDISourceInfo]:
     """Scan the LAN for NDI sources. Blocks for wait_sec, then returns."""
+    if not _NDI_AVAILABLE:
+        raise RuntimeError(
+            "NDIlib is not installed. "
+            "Install the NDI Tools SDK wheel to use NDI discovery."
+        )
     if not ndi.initialize():
         raise RuntimeError("NDI init failed")
     finder = ndi.find_create_v2()
@@ -37,6 +60,11 @@ class NDIReceiver:
     """
 
     def __init__(self, source_match: str, timeout_ms: int = 50) -> None:
+        if not _NDI_AVAILABLE:
+            raise RuntimeError(
+                "NDIlib is not installed. "
+                "Install the NDI Tools SDK wheel to connect to NDI cameras."
+            )
         self.source_match = source_match
         self.timeout_ms = timeout_ms
         self.source_name: str = ""

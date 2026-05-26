@@ -8,7 +8,6 @@ aiortc>=1.9
 av>=12.0
 
 # ── Computer vision ────────────────────────────────────────────────────────────
-opencv-python-headless>=4.9
 numpy>=1.26
 
 # ── PyTorch — platform-specific install ────────────────────────────────────────
@@ -22,6 +21,9 @@ torch>=2.3
 torchvision>=0.18
 
 # ── AI / tracking ──────────────────────────────────────────────────────────────
+# Pin headless BEFORE ultralytics so pip doesn't pull in opencv-python (GUI),
+# which conflicts with the av dylib bundled by aiortc on macOS.
+opencv-python-headless>=4.9
 ultralytics>=8.2            # YOLOv8/v9/v10
 deep-sort-realtime>=1.3
 
