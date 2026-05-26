@@ -34,6 +34,8 @@ export interface CameraStatus {
   running: boolean
   source_name: string
   mode: 'manual' | 'auto_track'
+  device: string       // e.g. "cuda:0", "mps", "cpu"
+  device_name: string  // e.g. "NVIDIA RTX 4090", "Apple Silicon GPU (MPS)"
 }
 
 export interface ConfigUpdate {

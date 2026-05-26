@@ -23,6 +23,7 @@ import numpy as np
 from .config import AppConfig
 from .controllers import PanController, ZoomController
 from .detection import BBox, Detector, SpeedEstimator
+from .device import device_info
 from .hud import draw_hud
 from .ndi_io import NDIReceiver
 from .ptz_cam import NDIPTZCamera
@@ -95,7 +96,11 @@ class TrackLoop:
         proc_w, proc_h = cfg.video.process_res
 
         # ── Build pipeline ────────────────────────────────────────────────────
-        detector  = Detector(cfg.track)
+        detector  = Detector(cfg.track, cfg.device)
+        info = device_info(detector.device)
+        session.device      = str(detector.device)
+        session.device_name = info.get("device_name", str(detector.device))
+
         pan_ctrl  = PanController(cfg.pan, cfg.command)
         zoom_ctrl = ZoomController(cfg.zoom, cfg.command)
         recorder  = VideoRecorder(cfg.record)
@@ -246,6 +251,8 @@ class TrackLoop:
             session._ptz              = None
             session._receiver         = None
             session._track_task       = None
+            session.device            = ""
+            session.device_name       = ""
             session.tracking.fps      = 0.0
             session.tracking.detected = False
 

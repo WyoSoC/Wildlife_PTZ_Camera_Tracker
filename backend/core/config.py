@@ -65,6 +65,16 @@ class SpeedConfig:
 
 
 @dataclass
+class DeviceConfig:
+    # "auto" selects CUDA → MPS → CPU in priority order.
+    # Override with "cuda", "cuda:0", "cuda:1", "mps", or "cpu".
+    device: str = "auto"
+    # FP16 inference — automatically disabled on non-CUDA backends.
+    # Gives ~2× speedup on NVIDIA GPUs and is critical on Jetson (unified memory).
+    half: bool = True
+
+
+@dataclass
 class AppConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
     video: VideoConfig = field(default_factory=VideoConfig)
@@ -74,6 +84,7 @@ class AppConfig:
     command: CommandConfig = field(default_factory=CommandConfig)
     record: RecordConfig = field(default_factory=RecordConfig)
     speed: SpeedConfig = field(default_factory=SpeedConfig)
+    device: DeviceConfig = field(default_factory=DeviceConfig)
 
 
 # ── Named profiles ─────────────────────────────────────────────────────────────

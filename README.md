@@ -69,10 +69,28 @@ Use a USB or Bluetooth gamepad for joystick control (DualSense, Xbox, generic HI
 
 ### 1  Backend
 
+Choose the requirements file for your hardware:
+
+| Platform | Command |
+|---|---|
+| macOS (Apple Silicon, MPS) | `pip install -r requirements.txt` |
+| Linux desktop/laptop NVIDIA GPU | `pip install -r requirements-cuda.txt` |
+| Jetson Orin Nano (JetPack 6) | See `requirements-jetson.txt` for two-step install |
+
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
+
+# macOS:
 pip install -r requirements.txt
+
+# Linux NVIDIA (CUDA 12.4):
+pip install -r requirements-cuda.txt
+
+# Jetson Orin Nano (JetPack 6):
+pip install torch torchvision --index-url https://pypi.jetson-ai-lab.dev/jp6/cu126
+pip install -r requirements-jetson.txt
+
 # Install NDI SDK wheel (path varies by SDK version):
 # pip install /path/to/NDIlib-*.whl
 
@@ -108,6 +126,49 @@ python -m backend.main
 ```
 
 The server opens `http://localhost:8080` in the default browser automatically.
+
+---
+
+## Inference Device
+
+The server selects the inference device automatically on startup.
+Priority order: **CUDA → MPS → CPU**.
+
+| Hardware | Device string | Notes |
+|---|---|---|
+| NVIDIA desktop/laptop GPU | `cuda` or `cuda:0` | FP16 enabled by default (~2× speedup) |
+| Jetson Orin Nano / NX / AGX | `cuda` | FP16 critical — 8 GB unified memory |
+| Apple Silicon M-series | `mps` | FP16 disabled (model-dependent stability) |
+| CPU fallback | `cpu` | Usable for testing; ~5–10× slower than GPU |
+
+Override via `DeviceConfig` in session config (API: `PUT /api/cameras/config`),
+or set it in a custom profile in `backend/core/config.py`:
+
+```python
+from backend.core.config import AppConfig, DeviceConfig
+
+my_config = AppConfig(
+    device=DeviceConfig(device="cuda:0", half=True),
+    # ... other sub-configs
+)
+```
+
+### TensorRT (Jetson — optional, 2–4× speedup)
+
+Export the YOLO model to a TensorRT engine once, then pass the `.engine` file
+as `model_path` in `TrackConfig`:
+
+```bash
+python - <<'EOF'
+from ultralytics import YOLO
+model = YOLO("yolov8n.pt")
+model.export(format="engine", half=True, device=0, imgsz=640)
+# Produces yolov8n.engine
+EOF
+```
+
+Then set `track.model_path = "yolov8n.engine"` in your profile or via the Camera
+config API.
 
 ---
 

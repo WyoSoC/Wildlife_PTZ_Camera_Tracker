@@ -145,6 +145,12 @@ export function ControlTab({ ws }: Props) {
                     : 'Not running'}
                 </span>
               </div>
+              {camStatus?.device_name && (
+                <div className="text-xs text-white/30 truncate font-mono"
+                     title={camStatus.device}>
+                  {camStatus.device_name}
+                </div>
+              )}
               {camStatus?.running ? (
                 <Button variant="ghost" size="sm" className="w-full"
                   onClick={stopCamera} loading={loopLoading}>

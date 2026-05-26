@@ -86,6 +86,8 @@ async def status():
         "running":     is_running(),
         "source_name": session.source_name,
         "mode":        session.mode,
+        "device":      session.device,
+        "device_name": session.device_name,
     }
 
 

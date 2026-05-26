@@ -243,7 +243,7 @@ export function CameraTab() {
                 </button>
               ) : camStatus.source_name ? (
                 <button
-                  onClick={() => connectAndStart({ name: camStatus.source_name, type: 'ndi' })}
+                  onClick={startCamera}
                   disabled={loopLoading}
                   className="shrink-0 p-1 rounded hover:bg-surface-border text-green-400/70
                              hover:text-green-400 disabled:opacity-40"

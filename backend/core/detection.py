@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
@@ -8,7 +9,10 @@ import torch
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
 
-from .config import TrackConfig, SpeedConfig
+from .config import TrackConfig, DeviceConfig, SpeedConfig
+from .device import select_device, half_supported, device_info
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,23 +64,38 @@ class Detector:
         primary = confirmed[0] if confirmed else (max(raw, key=...) if raw else None)
     """
 
-    def __init__(self, cfg: TrackConfig) -> None:
-        self._model = YOLO(cfg.model_path)
-        # MPS on Apple Silicon, CUDA if available, else CPU
-        if torch.backends.mps.is_available():
-            device = "mps"
-        elif torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
-        self._model.to(device)
-        self._tracker = DeepSort(max_age=cfg.tracker_max_age)
-        self._classes = cfg.detect_classes
+    def __init__(self, track_cfg: TrackConfig, dev_cfg: DeviceConfig = DeviceConfig()) -> None:
+        self._device = select_device(dev_cfg.device)
+        self._half   = dev_cfg.half and half_supported(self._device)
+
+        self._model = YOLO(track_cfg.model_path)
+        self._model.to(self._device)
+
+        info = device_info(self._device)
+        logger.info(
+            "Detector: %s | half=%s | model=%s",
+            info.get("device_name", str(self._device)),
+            self._half,
+            track_cfg.model_path,
+        )
+        if info.get("vram_gb"):
+            logger.info("  VRAM: %.1f GB  CUDA: %s  SM: %s",
+                        info["vram_gb"], info.get("cuda_version", "?"),
+                        info.get("sm_capability", "?"))
+
+        self._tracker = DeepSort(max_age=track_cfg.tracker_max_age)
+        self._classes = track_cfg.detect_classes
+
+    @property
+    def device(self) -> torch.device:
+        return self._device
 
     def update(
         self, frame: np.ndarray
     ) -> tuple[list[BBox], list[BBox]]:
-        results = self._model(frame, classes=self._classes, verbose=False)[0]
+        results = self._model(
+            frame, classes=self._classes, verbose=False, half=self._half
+        )[0]
 
         raw: list[BBox] = []
         ds_input: list = []

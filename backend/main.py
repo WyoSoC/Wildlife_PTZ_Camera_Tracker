@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api import cameras, ptz, webrtc, recordings
 from .api.webrtc import close_all
+from .core.device import select_device, device_info
 from .core.session import get_session
 from .core.track_loop import stop_track_loop
 
@@ -21,7 +22,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Eagle Tracker server starting")
+    dev = select_device(get_session().config.device.device)
+    info = device_info(dev)
+    logger.info(
+        "Eagle Tracker starting — inference device: %s",
+        info.get("device_name", str(dev)),
+    )
+    if info.get("vram_gb"):
+        logger.info("  VRAM: %.1f GB  CUDA: %s  SM: %s  Jetson: %s",
+                    info["vram_gb"], info.get("cuda_version", "?"),
+                    info.get("sm_capability", "?"), info.get("is_jetson", False))
     get_session().init_async()
     yield
     logger.info("Eagle Tracker server shutting down")

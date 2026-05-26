@@ -1,0 +1,35 @@
+# NVIDIA Jetson — Orin Nano / Orin NX / AGX Orin (JetPack 6.x, CUDA 12.6)
+#
+# Usage:
+#   # 1. Install JetPack-distributed PyTorch (do this BEFORE pip installing):
+#   pip install torch torchvision \
+#       --index-url https://pypi.jetson-ai-lab.dev/jp6/cu126
+#
+#   # 2. Install remaining dependencies:
+#   pip install -r requirements-jetson.txt
+#
+# Notes:
+#   - torch and torchvision are intentionally excluded from this file.
+#     Installing the generic PyPI torch wheel on Jetson will pull an
+#     x86/aarch64-CPU build that does NOT expose CUDA — use the JetPack
+#     wheel above instead.
+#   - FP16 inference (half=True in DeviceConfig) is strongly recommended
+#     on Orin Nano due to its 8 GB unified memory shared between CPU and GPU.
+#   - opencv-python-headless does NOT use the Jetson hardware NVJPEG decoder.
+#     For maximum throughput, build OpenCV from source with GStreamer + CUDA
+#     support and omit opencv-python-headless from this list.
+#   - ultralytics>=8.2 will automatically export to TensorRT on first run
+#     if you call: model.export(format="engine", half=True, device=0)
+#     The resulting .engine file can be passed as model_path in TrackConfig.
+
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.0
+aiortc>=1.9
+av>=12.0
+opencv-python-headless>=4.9
+numpy>=1.26
+ultralytics>=8.2
+deep-sort-realtime>=1.3
+websockets>=12.0
+# pygame not needed on headless Jetson deployments

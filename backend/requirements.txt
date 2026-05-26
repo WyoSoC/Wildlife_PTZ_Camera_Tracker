@@ -1,24 +1,37 @@
-# Web framework
+# ── Web framework ──────────────────────────────────────────────────────────────
 fastapi>=0.111
 uvicorn[standard]>=0.30
 pydantic>=2.0
 
-# WebRTC (video streaming to browser)
+# ── WebRTC (video streaming to browser) ───────────────────────────────────────
 aiortc>=1.9
 av>=12.0
 
-# Computer vision + inference
+# ── Computer vision ────────────────────────────────────────────────────────────
 opencv-python-headless>=4.9
 numpy>=1.26
-torch>=2.3                  # uses MPS on Apple Silicon automatically
-ultralytics>=8.2            # YOLOv8
+
+# ── PyTorch — platform-specific install ────────────────────────────────────────
+# macOS (Apple Silicon MPS auto-detected):
+#   pip install -r requirements.txt            # torch pulled from PyPI
+# Linux desktop/laptop NVIDIA GPU:
+#   pip install -r requirements-cuda.txt
+# Jetson Orin Nano (JetPack 6):
+#   pip install -r requirements-jetson.txt
+torch>=2.3
+torchvision>=0.18
+
+# ── AI / tracking ──────────────────────────────────────────────────────────────
+ultralytics>=8.2            # YOLOv8/v9/v10
 deep-sort-realtime>=1.3
 
-# NDI SDK Python bindings  (install from NDI Tools SDK wheel)
+# ── NDI SDK Python bindings ────────────────────────────────────────────────────
+# Install from the NDI Tools SDK wheel (not on PyPI):
+#   pip install /path/to/NDIlib-*.whl
 # NDIlib
 
-# Joystick (used only by joystick_control.py, not the web server)
+# ── Joystick (optional — used only by archive/ndi_joystick_log_ms.py) ─────────
 pygame>=2.5
 
-# Utilities
+# ── Utilities ──────────────────────────────────────────────────────────────────
 websockets>=12.0

@@ -52,6 +52,8 @@ class Session:
         self.connected:   bool      = False
         self.source_name: str       = ""
         self.mode:        str       = "manual"   # "manual" | "auto_track"
+        self.device:      str       = ""         # resolved torch device, e.g. "cuda:0"
+        self.device_name: str       = ""         # human label, e.g. "NVIDIA RTX 4090"
 
         self.tracking  = TrackingState()
         self.recording = RecordingState()
