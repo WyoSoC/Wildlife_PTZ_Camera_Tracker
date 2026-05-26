@@ -1,0 +1,24 @@
+# Web framework
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.0
+
+# WebRTC (video streaming to browser)
+aiortc>=1.9
+av>=12.0
+
+# Computer vision + inference
+opencv-python-headless>=4.9
+numpy>=1.26
+torch>=2.3                  # uses MPS on Apple Silicon automatically
+ultralytics>=8.2            # YOLOv8
+deep-sort-realtime>=1.3
+
+# NDI SDK Python bindings  (install from NDI Tools SDK wheel)
+# NDIlib
+
+# Joystick (used only by joystick_control.py, not the web server)
+pygame>=2.5
+
+# Utilities
+websockets>=12.0
