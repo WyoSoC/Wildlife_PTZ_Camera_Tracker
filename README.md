@@ -96,33 +96,27 @@ Use a USB or Bluetooth gamepad for joystick control (DualSense, Xbox, generic HI
 
 ### 1  Backend
 
-Choose the requirements file for your hardware:
-
-| Platform | Command |
-|---|---|
-| macOS (Apple Silicon, MPS) | `pip install -r requirements.txt` |
-| Linux desktop/laptop NVIDIA GPU | `pip install -r requirements-cuda.txt` |
-| Jetson Orin Nano/NX/AGX (JetPack 6) | See `requirements-jetson.txt` — two-step install |
-| Raspberry Pi / CPU-only | `pip install -r requirements.txt` |
+`install.py` auto-detects the platform (Jetson, NVIDIA GPU, macOS, Raspberry Pi,
+or CPU), installs the correct PyTorch variant, then installs all remaining
+dependencies from `requirements.txt`.
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 
-# macOS or Raspberry Pi / CPU:
-pip install -r requirements.txt
+python install.py          # detects platform and installs everything
 
-# Linux NVIDIA (CUDA 12.4):
-pip install -r requirements-cuda.txt
-
-# Jetson Orin (JetPack 6):
-pip install torch torchvision --index-url https://pypi.jetson-ai-lab.dev/jp6/cu126
-pip install -r requirements-jetson.txt
-
-# NDI cameras (optional — install the NDI Tools SDK wheel):
+# Optional: NDI cameras (BirdDog, Bolin) — install the NDI Tools SDK wheel:
 # pip install /path/to/NDIlib-*.whl
 
 uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+To preview what will be installed without running anything:
+
+```bash
+python install.py --dry-run   # print commands only
+python install.py --list      # show detected platform and exit
 ```
 
 API is live at `http://localhost:8080`.
@@ -384,9 +378,8 @@ Deadzone: 0.1 (values below ignored).
 │   │   ├── webrtc.py        # /api/webrtc/offer  (SDP exchange, NDIVideoTrack)
 │   │   └── recordings.py    # /api/recordings/* + /api/logs/*
 │   ├── main.py              # FastAPI app, lifespan, SPA fallback, entry point
-│   ├── requirements.txt         # macOS / Raspberry Pi / CPU
-│   ├── requirements-cuda.txt    # Linux NVIDIA GPU (CUDA 12.4)
-│   └── requirements-jetson.txt  # Jetson Orin (JetPack 6)
+│   ├── install.py           # Auto-detecting installer (Jetson/CUDA/macOS/RPi/CPU)
+│   └── requirements.txt     # All deps except torch (installed by install.py)
 ├── frontend/
 │   └── src/
 │       ├── api/client.ts    # Typed fetch wrappers for all REST endpoints

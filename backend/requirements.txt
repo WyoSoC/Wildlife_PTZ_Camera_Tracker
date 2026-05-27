@@ -1,3 +1,13 @@
+# Eagle Tracker — backend dependencies
+#
+# PyTorch is NOT listed here because the correct wheel varies by hardware.
+# Run the installer instead of pip-installing this file directly:
+#
+#   python install.py
+#
+# The installer detects your platform (Jetson / NVIDIA GPU / macOS / RPi / CPU),
+# installs the right torch variant, then installs everything below.
+
 # ── Web framework ──────────────────────────────────────────────────────────────
 fastapi>=0.111
 uvicorn[standard]>=0.30
@@ -9,30 +19,19 @@ av>=12.0
 
 # ── Computer vision ────────────────────────────────────────────────────────────
 numpy>=1.26
-
-# ── PyTorch — platform-specific install ────────────────────────────────────────
-# macOS (Apple Silicon MPS auto-detected):
-#   pip install -r requirements.txt            # torch pulled from PyPI
-# Linux desktop/laptop NVIDIA GPU:
-#   pip install -r requirements-cuda.txt
-# Jetson Orin Nano (JetPack 6):
-#   pip install -r requirements-jetson.txt
-torch>=2.3
-torchvision>=0.18
-
-# ── AI / tracking ──────────────────────────────────────────────────────────────
-# Pin headless BEFORE ultralytics so pip doesn't pull in opencv-python (GUI),
-# which conflicts with the av dylib bundled by aiortc on macOS.
+# Pin headless before ultralytics so pip does not pull in opencv-python (GUI),
+# which conflicts with the av dylib on macOS.
 opencv-python-headless>=4.9
-ultralytics>=8.2            # YOLOv8/v9/v10
+ultralytics>=8.2
 deep-sort-realtime>=1.3
 
 # ── NDI SDK Python bindings ────────────────────────────────────────────────────
+# Optional — required only for NDI cameras (BirdDog, Bolin).
 # Install from the NDI Tools SDK wheel (not on PyPI):
 #   pip install /path/to/NDIlib-*.whl
-# NDIlib
 
-# ── Joystick (optional — used only by archive/ndi_joystick_log_ms.py) ─────────
+# ── Joystick (optional) ────────────────────────────────────────────────────────
+# Used only by archive/ndi_joystick_log_ms.py, not the web server.
 pygame>=2.5
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
