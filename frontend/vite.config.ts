@@ -8,8 +8,8 @@ const isGitHubPages = process.env.GITHUB_PAGES === 'true'
 export default defineConfig({
   plugins: [react()],
 
-  // GitHub Pages: /EdgeComputing_GoldenEagle/  •  local: /
-  base: isGitHubPages ? '/EdgeComputing_GoldenEagle/' : '/',
+  // GitHub Pages: /Wildlife_PTZ_Camera_Tracker/  •  local: /
+  base: isGitHubPages ? '/Wildlife_PTZ_Camera_Tracker/' : '/',
 
   server: {
     port: 5173,

@@ -1,9 +1,16 @@
-# Eagle Tracker — Web App
+# Wildlife PTZ Camera Tracker
 
-Browser-based control panel for NDI PTZ cameras with YOLO auto-tracking.
+Browser-based control panel for tracking wildlife with NDI PTZ cameras and YOLO inference.
 Runs as a single Python server on an edge computer (Raspberry Pi, NVIDIA Jetson,
 Mac Mini, or any Linux/macOS host) co-located on the camera LAN; accessible from
 any browser via Tailscale.
+
+**Live web app (GitHub Pages):** https://WyoSoC.github.io/Wildlife_PTZ_Camera_Tracker/
+
+> The web app is a standalone frontend — enter your server's Tailscale URL on the
+> connect screen to link it to your edge server.
+
+**Repository:** https://github.com/WyoSoC/Wildlife_PTZ_Camera_Tracker
 
 ---
 
