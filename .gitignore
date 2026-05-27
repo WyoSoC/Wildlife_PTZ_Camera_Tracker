@@ -17,9 +17,11 @@ frontend/dist/
 backend/static/
 
 # PyInstaller
-dist/
 build/
 *.spec
+
+# Build outputs
+dist/
 
 # macOS
 .DS_Store

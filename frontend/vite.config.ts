@@ -21,9 +21,9 @@ export default defineConfig({
   },
 
   build: {
-    // GitHub Pages: standalone bundle in dist/pages/
+    // GitHub Pages: standalone bundle in <repo-root>/dist/pages/
     // Local server: lands in backend/static/ so FastAPI serves it
-    outDir:     isGitHubPages ? '../../dist/pages' : '../backend/static',
+    outDir:     isGitHubPages ? '../dist/pages' : '../backend/static',
     emptyOutDir: true,
   },
 })

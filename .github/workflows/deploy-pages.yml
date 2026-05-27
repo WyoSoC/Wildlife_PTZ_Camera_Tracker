@@ -6,15 +6,16 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-pages.yml'
-  workflow_dispatch:
+  workflow_dispatch:   # allow manual trigger from the Actions tab
 
 permissions:
   contents: read
   pages:    write
   id-token: write
 
+# Allow only one concurrent deployment; cancel any in-progress run.
 concurrency:
-  group:             pages
+  group:              pages
   cancel-in-progress: true
 
 jobs:
@@ -41,15 +42,19 @@ jobs:
 
       - name: Build for GitHub Pages
         working-directory: frontend
-        env:
-          GITHUB_PAGES: 'true'
-        run: npm run build
+        run: npm run build:pages
+        # Outputs to <repo-root>/dist/pages/  (vite outDir = '../dist/pages')
+
+      - name: Verify build output exists
+        run: |
+          echo "=== dist/pages contents ==="
+          ls -lh dist/pages/
+          ls -lh dist/pages/assets/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # The vite build outputs to dist/pages/ (relative to repo root)
-          path: dist/pages
+          path: dist/pages   # relative to repo root
 
       - name: Deploy to GitHub Pages
         id: deployment
