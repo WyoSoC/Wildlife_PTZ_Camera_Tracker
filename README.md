@@ -111,7 +111,7 @@ python install.py          # detects platform and installs everything
 # pip install /path/to/NDIlib-*.whl
 
 cd ..
-python run.py --dev        # starts uvicorn with auto-reload
+python run_server.py --dev        # starts uvicorn with auto-reload
 ```
 
 To preview what will be installed without running anything:
@@ -125,7 +125,7 @@ python install.py --list      # show detected platform and exit
 API is live at `http://localhost:8080`.
 Interactive docs: `http://localhost:8080/docs`.
 
-> **Important:** always start the server from the project root using `python run.py`.
+> **Important:** always start the server from the project root using `python run_server.py`.
 > Running `uvicorn backend.main:app` directly from inside the `backend/` directory
 > will fail with `ModuleNotFoundError: No module named 'backend'` because Python
 > needs the parent directory on `sys.path` to resolve the `backend` package.
@@ -151,8 +151,8 @@ npm run build      # outputs to ../backend/static (see vite.config.ts)
 
 # 2. Run the server from the project root (serves the SPA automatically)
 cd ..
-python run.py                  # default: 0.0.0.0:8080
-python run.py --port 9090      # custom port
+python run_server.py                  # default: 0.0.0.0:8080
+python run_server.py --port 9090      # custom port
 ```
 
 ---

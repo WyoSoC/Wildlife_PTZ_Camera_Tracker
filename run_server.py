@@ -4,9 +4,9 @@ Start the Eagle Tracker server.
 
 Run from the project root (the directory that contains backend/ and frontend/):
 
-    python run.py               # production  — serves pre-built frontend
-    python run.py --dev         # development — enables uvicorn --reload
-    python run.py --port 9090   # custom port
+    python run_server.py               # production  — serves pre-built frontend
+    python run_server.py --dev         # development — enables uvicorn --reload
+    python run_server.py --port 9090   # custom port
 """
 import argparse
 import os
