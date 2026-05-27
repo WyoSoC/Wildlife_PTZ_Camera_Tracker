@@ -101,26 +101,34 @@ or CPU), installs the correct PyTorch variant, then installs all remaining
 dependencies from `requirements.txt`.
 
 ```bash
-cd backend
+# Run from the project root (the directory that contains backend/ and frontend/)
 python -m venv .venv && source .venv/bin/activate
 
+cd backend
 python install.py          # detects platform and installs everything
 
 # Optional: NDI cameras (BirdDog, Bolin) — install the NDI Tools SDK wheel:
 # pip install /path/to/NDIlib-*.whl
 
-uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
+cd ..
+python run.py --dev        # starts uvicorn with auto-reload
 ```
 
 To preview what will be installed without running anything:
 
 ```bash
+cd backend
 python install.py --dry-run   # print commands only
 python install.py --list      # show detected platform and exit
 ```
 
 API is live at `http://localhost:8080`.
 Interactive docs: `http://localhost:8080/docs`.
+
+> **Important:** always start the server from the project root using `python run.py`.
+> Running `uvicorn backend.main:app` directly from inside the `backend/` directory
+> will fail with `ModuleNotFoundError: No module named 'backend'` because Python
+> needs the parent directory on `sys.path` to resolve the `backend` package.
 
 ### 2  Frontend (dev server with hot-reload)
 
@@ -141,9 +149,10 @@ Vite proxies `/api` and `/ws` to `:8080`, so the backend must be running.
 cd frontend
 npm run build      # outputs to ../backend/static (see vite.config.ts)
 
-# 2. Run the server (serves the SPA automatically)
+# 2. Run the server from the project root (serves the SPA automatically)
 cd ..
-uvicorn backend.main:app --host 0.0.0.0 --port 8080
+python run.py                  # default: 0.0.0.0:8080
+python run.py --port 9090      # custom port
 ```
 
 ---
