@@ -30,9 +30,5 @@ deep-sort-realtime>=1.3
 # Install from the NDI Tools SDK wheel (not on PyPI):
 #   pip install /path/to/NDIlib-*.whl
 
-# ── Joystick (optional) ────────────────────────────────────────────────────────
-# Used only by archive/ndi_joystick_log_ms.py, not the web server.
-pygame>=2.5
-
 # ── Utilities ──────────────────────────────────────────────────────────────────
 websockets>=12.0
