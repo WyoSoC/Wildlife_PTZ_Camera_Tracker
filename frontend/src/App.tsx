@@ -1,34 +1,59 @@
 import { useState } from 'react'
+import { ServerProvider, useServer } from './context/ServerContext'
+import { ConnectScreen } from './components/ConnectScreen'
 import { useWebSocket } from './hooks/useWebSocket'
 import { CameraTab } from './tabs/CameraTab'
 import { ControlTab } from './tabs/ControlTab'
 import { LogsTab } from './tabs/LogsTab'
+import { ServerTab } from './tabs/ServerTab'
 import { StatusDot } from './components/ui/Badge'
 
-type TabId = 'camera' | 'control' | 'logs'
+type TabId = 'camera' | 'control' | 'logs' | 'server'
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'camera',  label: 'Camera & Config' },
+  { id: 'camera',  label: 'Cameras & Config' },
   { id: 'control', label: 'Controls' },
   { id: 'logs',    label: 'Logs & Recordings' },
+  { id: 'server',  label: 'Server' },
 ]
 
-export default function App() {
+function AppShell() {
+  const { server, cameras, activeCameraId, setActiveCameraId } = useServer()
   const [activeTab, setActiveTab] = useState<TabId>('camera')
-  const ws = useWebSocket()
+  const ws = useWebSocket(activeCameraId)
+
+  if (!server) return <ConnectScreen />
 
   return (
     <div className="flex flex-col h-screen bg-surface-base text-white overflow-hidden">
+
       {/* ── Header ── */}
       <header className="flex items-center gap-3 px-5 py-2.5 border-b border-surface-border bg-surface-panel shrink-0">
         <span className="text-base font-bold tracking-tight select-none">
-          🦅 Eagle Tracker
+          🦅 Wildlife PTZ Camera Tracker
         </span>
 
+        {/* Camera selector */}
+        {cameras.length > 0 && (
+          <select
+            value={activeCameraId ?? ''}
+            onChange={e => setActiveCameraId(e.target.value)}
+            className="ml-2 text-xs bg-surface-base border border-surface-border rounded
+                       px-2 py-1 text-white focus:outline-none focus:border-blue-500"
+          >
+            {cameras.map(c => (
+              <option key={c.camera_id} value={c.camera_id}>
+                {c.camera_id}{c.source_name ? ` — ${c.source_name}` : ''}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* WS status */}
         <div className="flex items-center gap-1.5 ml-2">
           <StatusDot active={ws.wsConnected} />
           <span className="text-xs text-white/40">
-            {ws.wsConnected ? 'Server connected' : 'Server disconnected'}
+            {ws.wsConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
 
@@ -59,15 +84,13 @@ export default function App() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={[
-              'relative px-5 py-3 text-sm font-medium transition-colors select-none',
-              'border-b-2',
+              'relative px-5 py-3 text-sm font-medium transition-colors select-none border-b-2',
               activeTab === tab.id
                 ? 'border-blue-500 text-white'
                 : 'border-transparent text-white/40 hover:text-white/70',
             ].join(' ')}
           >
             {tab.label}
-            {/* Red pulse dot on Controls tab while recording */}
             {tab.id === 'control' && ws.telemetry?.rec_active && (
               <span className="absolute top-2.5 right-2 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             )}
@@ -78,9 +101,20 @@ export default function App() {
       {/* ── Tab content ── */}
       <main className="flex-1 overflow-hidden">
         <div className={activeTab === 'camera'  ? 'h-full' : 'hidden'}><CameraTab /></div>
-        <div className={activeTab === 'control' ? 'h-full' : 'hidden'}><ControlTab ws={ws} /></div>
-        <div className={activeTab === 'logs'    ? 'h-full' : 'hidden'}><LogsTab /></div>
+        <div className={activeTab === 'control' ? 'h-full' : 'hidden'}>
+          <ControlTab ws={ws} cameraId={activeCameraId} />
+        </div>
+        <div className={activeTab === 'logs'   ? 'h-full' : 'hidden'}><LogsTab /></div>
+        <div className={activeTab === 'server' ? 'h-full' : 'hidden'}><ServerTab /></div>
       </main>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <ServerProvider>
+      <AppShell />
+    </ServerProvider>
   )
 }

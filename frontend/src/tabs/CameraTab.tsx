@@ -1,112 +1,127 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RefreshCw, Wifi, Camera, CheckCircle2, Play, Square } from 'lucide-react'
+import { RefreshCw, Wifi, Camera, CheckCircle2, Play, Square, Plus, Trash2 } from 'lucide-react'
 import { api } from '../api/client'
-import type { CameraConfig, CameraStatus, ConfigUpdate, NDISource } from '../types'
+import { useServer } from '../context/ServerContext'
+import type { CameraConfig, CameraStatus, ConfigUpdate, ModelInfo, NDISource } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SliderField, ToggleField } from '../components/ui/SliderField'
 import { StatusDot } from '../components/ui/Badge'
 
-const YOLO_MODELS = ['yolov8n.pt', 'yolov8s.pt', 'yolov8m.pt']
 const CLASS_OPTIONS = [
-  { value: 0,    label: 'Person' },
-  { value: 2,    label: 'Car' },
-  { value: 16,   label: 'Dog' },
-  { value: null, label: 'All objects' },
+  { value: 'null', label: 'All species (model default)' },
+  { value: '14',   label: 'Birds (COCO class 14)' },
+  { value: '21',   label: 'Bear  (COCO class 21)' },
+  { value: '17',   label: 'Horse (COCO class 17)' },
+  { value: '18',   label: 'Sheep (COCO class 18)' },
+  { value: '0',    label: 'Person (COCO class 0)' },
 ]
 
 export function CameraTab() {
-  const [sources, setSources] = useState<NDISource[]>([])
-  const [scanning, setScanning] = useState(false)
-  const [config, setConfig] = useState<CameraConfig | null>(null)
-  const [camStatus, setCamStatus] = useState<CameraStatus | null>(null)
-  const [reolinkUrl, setReolinkUrl] = useState('')
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const { cameras, activeCameraId, setActiveCameraId, refreshCameras } = useServer()
+  const cameraId = activeCameraId
+
+  const [sources,     setSources]     = useState<NDISource[]>([])
+  const [scanning,    setScanning]    = useState(false)
+  const [config,      setConfig]      = useState<CameraConfig | null>(null)
+  const [camStatus,   setCamStatus]   = useState<CameraStatus | null>(null)
+  const [models,      setModels]      = useState<ModelInfo[]>([])
+  const [reolinkUrl,  setReolinkUrl]  = useState('')
+  const [saveStatus,  setSaveStatus]  = useState<'idle' | 'saving' | 'saved'>('idle')
   const [loopLoading, setLoopLoading] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
-  // Load config + initial status on mount
+  // Load config, status, models when active camera changes
   useEffect(() => {
-    api.cameras.getConfig().then(setConfig).catch(console.error)
-    api.cameras.status().then(setCamStatus).catch(console.error)
-  }, [])
+    if (!cameraId) return
+    api.cameras.getConfig(cameraId).then(setConfig).catch(console.error)
+    api.cameras.status(cameraId).then(setCamStatus).catch(console.error)
+    api.models.list().then(r => setModels(r.models)).catch(console.error)
+  }, [cameraId])
 
   const scan = useCallback(async () => {
     setScanning(true)
     try {
       const { sources: found } = await api.cameras.discover()
       setSources(found)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setScanning(false)
-    }
+    } catch (e) { console.error(e) }
+    finally   { setScanning(false) }
   }, [])
 
   const connectAndStart = useCallback(async (source: NDISource) => {
+    if (!cameraId) return
     try {
-      await api.cameras.connect(source.name, source.type)
+      await api.cameras.connect(cameraId, source.name, source.type)
       setLoopLoading(true)
-      await api.cameras.start()
-      const s = await api.cameras.status()
-      setCamStatus(s)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoopLoading(false)
-    }
-  }, [])
+      await api.cameras.start(cameraId)
+      setCamStatus(await api.cameras.status(cameraId))
+    } catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
+  }, [cameraId])
 
   const connectReolink = useCallback(async () => {
-    if (!reolinkUrl) return
+    if (!cameraId || !reolinkUrl) return
     const label = reolinkUrl.split('@').pop() ?? reolinkUrl
     try {
-      await api.cameras.connect(label, 'reolink', reolinkUrl)
+      await api.cameras.connect(cameraId, label, 'reolink', reolinkUrl)
       setLoopLoading(true)
-      await api.cameras.start()
-      const s = await api.cameras.status()
-      setCamStatus(s)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoopLoading(false)
-    }
-  }, [reolinkUrl])
+      await api.cameras.start(cameraId)
+      setCamStatus(await api.cameras.status(cameraId))
+    } catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
+  }, [cameraId, reolinkUrl])
 
   const startCamera = useCallback(async () => {
+    if (!cameraId) return
     try {
       setLoopLoading(true)
-      await api.cameras.start()
-      const s = await api.cameras.status()
-      setCamStatus(s)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoopLoading(false)
-    }
-  }, [])
+      await api.cameras.start(cameraId)
+      setCamStatus(await api.cameras.status(cameraId))
+    } catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
+  }, [cameraId])
 
   const stopCamera = useCallback(async () => {
+    if (!cameraId) return
     try {
       setLoopLoading(true)
-      await api.cameras.stop()
-      const s = await api.cameras.status()
-      setCamStatus(s)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoopLoading(false)
-    }
-  }, [])
+      await api.cameras.stop(cameraId)
+      setCamStatus(await api.cameras.status(cameraId))
+    } catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
+  }, [cameraId])
 
-  // Debounced config update
+  const addCamera = useCallback(async () => {
+    try {
+      const { camera_id } = await api.cameras.create()
+      await refreshCameras()
+      setActiveCameraId(camera_id)
+    } catch (e) { console.error(e) }
+  }, [refreshCameras, setActiveCameraId])
+
+  const removeCamera = useCallback(async (id: string) => {
+    if (!confirm(`Remove camera ${id}?`)) return
+    try {
+      await api.cameras.remove(id)
+      await refreshCameras()
+    } catch (e) { console.error(e) }
+  }, [refreshCameras])
+
+  const switchModel = useCallback(async (modelName: string) => {
+    if (!cameraId) return
+    try {
+      await api.cameras.switchModel(cameraId, modelName)
+      setConfig(await api.cameras.getConfig(cameraId))
+    } catch (e) { console.error(e) }
+  }, [cameraId])
+
   const patchConfig = useCallback((update: ConfigUpdate) => {
+    if (!cameraId) return
     setConfig(prev => {
       if (!prev) return prev
       return {
         ...prev,
-        pan: {
-          ...prev.pan,
+        pan:    { ...prev.pan,
           ...(update.pan_dead_zone_px !== undefined && { dead_zone_px: update.pan_dead_zone_px }),
           ...(update.pan_thresh_px   !== undefined && { thresh_px:    update.pan_thresh_px }),
           ...(update.pan_kp          !== undefined && { kp:           update.pan_kp }),
@@ -114,81 +129,106 @@ export function CameraTab() {
           ...(update.pan_min_speed   !== undefined && { min_speed:    update.pan_min_speed }),
           ...(update.pan_invert      !== undefined && { invert:       update.pan_invert }),
         },
-        zoom: {
-          ...prev.zoom,
+        zoom:   { ...prev.zoom,
           ...(update.zoom_in_frac   !== undefined && { zoom_in_frac:  update.zoom_in_frac }),
           ...(update.zoom_out_frac  !== undefined && { zoom_out_frac: update.zoom_out_frac }),
           ...(update.zoom_speed     !== undefined && { speed:         update.zoom_speed }),
           ...(update.zoom_invert    !== undefined && { invert:        update.zoom_invert }),
           ...(update.zoom_ema_alpha !== undefined && { ema_alpha:     update.zoom_ema_alpha }),
         },
-        track: {
-          ...prev.track,
+        track:  { ...prev.track,
           ...(update.detect_classes !== undefined && { detect_classes: update.detect_classes }),
+          ...(update.model_path     !== undefined && { model_path:     update.model_path }),
         },
-        record: {
-          ...prev.record,
+        record: { ...prev.record,
           ...(update.record_duration_sec !== undefined && { duration_sec: update.record_duration_sec }),
           ...(update.record_fps          !== undefined && { fps:          update.record_fps }),
         },
-        speed: {
-          ...prev.speed,
+        speed:  { ...prev.speed,
           ...(update.hfov_deg !== undefined && { hfov_deg: update.hfov_deg }),
         },
       }
     })
-
     setSaveStatus('saving')
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       try {
-        await api.cameras.updateConfig(update)
+        await api.cameras.updateConfig(cameraId, update)
         setSaveStatus('saved')
         setTimeout(() => setSaveStatus('idle'), 1500)
-      } catch (e) {
-        console.error(e)
-        setSaveStatus('idle')
-      }
+      } catch (e) { console.error(e); setSaveStatus('idle') }
     }, 400)
-  }, [])
+  }, [cameraId])
 
   return (
     <div className="h-full overflow-auto p-4">
       <div className="flex gap-4 max-w-6xl mx-auto">
 
-        {/* ── Left panel: source discovery ── */}
+        {/* ── Left panel ── */}
         <div className="w-72 shrink-0 space-y-3">
+
+          {/* Camera list */}
+          <Card title="Cameras">
+            <div className="space-y-1.5">
+              {cameras.map(c => (
+                <div
+                  key={c.camera_id}
+                  onClick={() => setActiveCameraId(c.camera_id)}
+                  className={[
+                    'flex items-center gap-2 px-2.5 py-2 rounded-md border cursor-pointer transition-colors',
+                    c.camera_id === activeCameraId
+                      ? 'bg-blue-900/30 border-blue-700/60'
+                      : 'bg-surface-raised border-surface-border hover:border-blue-600/30',
+                  ].join(' ')}
+                >
+                  <StatusDot active={c.running} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white truncate">{c.camera_id}</p>
+                    {c.source_name && (
+                      <p className="text-xs text-white/35 truncate">{c.source_name}</p>
+                    )}
+                  </div>
+                  {cameras.length > 1 && (
+                    <button
+                      onClick={e => { e.stopPropagation(); removeCamera(c.camera_id) }}
+                      className="p-0.5 text-white/20 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addCamera}
+                className="w-full flex items-center justify-center gap-1 py-1.5 text-xs
+                           text-white/30 hover:text-white/60 border border-dashed border-surface-border
+                           hover:border-blue-700/40 rounded-md transition-colors"
+              >
+                <Plus size={11} /> Add Camera
+              </button>
+            </div>
+          </Card>
+
+          {/* NDI discovery */}
           <Card title="NDI Sources">
             <div className="space-y-2">
-              <Button
-                onClick={scan}
-                loading={scanning}
-                size="sm"
-                className="w-full"
-              >
+              <Button onClick={scan} loading={scanning} size="sm" className="w-full">
                 <RefreshCw size={12} />
                 {scanning ? 'Scanning…' : 'Scan Network'}
               </Button>
-
               {sources.length === 0 && !scanning && (
-                <p className="text-xs text-white/30 text-center py-3">
-                  No sources found. Click Scan.
-                </p>
+                <p className="text-xs text-white/30 text-center py-2">No sources — click Scan</p>
               )}
-
               {sources.map((src) => {
                 const active = camStatus?.source_name === src.name && camStatus?.running
                 return (
                   <div
                     key={src.name}
                     className="flex items-center gap-2 p-2 rounded-md bg-surface-raised
-                               border border-surface-border hover:border-blue-600/50
-                               transition-colors group"
+                               border border-surface-border hover:border-blue-600/50 group"
                   >
                     <Wifi size={13} className="text-blue-400 shrink-0" />
-                    <span className="flex-1 text-xs truncate" title={src.name}>
-                      {src.name}
-                    </span>
+                    <span className="flex-1 text-xs truncate">{src.name}</span>
                     {active
                       ? <CheckCircle2 size={13} className="text-green-400 shrink-0" />
                       : (
@@ -207,29 +247,25 @@ export function CameraTab() {
             </div>
           </Card>
 
-          <Card title="Reolink RTSP">
+          {/* Reolink RTSP */}
+          <Card title="Reolink / RTSP">
             <div className="space-y-2">
               <input
                 type="text"
                 placeholder="rtsp://user:pass@192.168.1.x/…"
                 value={reolinkUrl}
-                onChange={(e) => setReolinkUrl(e.target.value)}
+                onChange={e => setReolinkUrl(e.target.value)}
                 className="w-full text-xs bg-surface-base border border-surface-border
                            rounded px-2.5 py-1.5 text-white placeholder-white/20
                            focus:outline-none focus:border-blue-500"
               />
-              <Button
-                size="sm"
-                className="w-full"
-                disabled={!reolinkUrl}
-                onClick={connectReolink}
-              >
+              <Button size="sm" className="w-full" disabled={!reolinkUrl} onClick={connectReolink}>
                 <Camera size={12} /> Connect RTSP
               </Button>
             </div>
           </Card>
 
-          {/* Camera loop status + controls */}
+          {/* Status */}
           {camStatus && (
             <div className={[
               'flex items-center gap-2 px-3 py-2 rounded-md border',
@@ -238,30 +274,20 @@ export function CameraTab() {
                 : 'bg-surface-raised border-surface-border',
             ].join(' ')}>
               <StatusDot active={camStatus.running} />
-              <span className="text-xs truncate flex-1" title={camStatus.source_name}>
+              <span className="text-xs truncate flex-1">
                 {camStatus.running
                   ? <span className="text-green-300">{camStatus.source_name || 'Running'}</span>
                   : <span className="text-white/40">Stopped</span>
                 }
               </span>
               {camStatus.running ? (
-                <button
-                  onClick={stopCamera}
-                  disabled={loopLoading}
-                  className="shrink-0 p-1 rounded hover:bg-surface-border text-red-400/70
-                             hover:text-red-400 disabled:opacity-40"
-                  title="Stop capture"
-                >
+                <button onClick={stopCamera} disabled={loopLoading}
+                  className="shrink-0 p-1 text-red-400/70 hover:text-red-400 disabled:opacity-40">
                   <Square size={11} />
                 </button>
               ) : camStatus.source_name ? (
-                <button
-                  onClick={startCamera}
-                  disabled={loopLoading}
-                  className="shrink-0 p-1 rounded hover:bg-surface-border text-green-400/70
-                             hover:text-green-400 disabled:opacity-40"
-                  title="Start capture"
-                >
+                <button onClick={startCamera} disabled={loopLoading}
+                  className="shrink-0 p-1 text-green-400/70 hover:text-green-400 disabled:opacity-40">
                   <Play size={11} />
                 </button>
               ) : null}
@@ -269,88 +295,56 @@ export function CameraTab() {
           )}
         </div>
 
-        {/* ── Right panel: configuration ── */}
+        {/* ── Right panel: config ── */}
         <div className="flex-1 space-y-3">
-          {/* Save status */}
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white/60">Camera Configuration</h2>
-            {saveStatus === 'saved' && (
-              <span className="text-xs text-green-400 flex items-center gap-1">
-                <CheckCircle2 size={11} /> Saved
-              </span>
-            )}
-            {saveStatus === 'saving' && (
-              <span className="text-xs text-white/30">Saving…</span>
-            )}
+            <h2 className="text-sm font-semibold text-white/60">
+              Configuration — {cameraId ?? '—'}
+            </h2>
+            {saveStatus === 'saved'  && <span className="text-xs text-green-400 flex gap-1 items-center"><CheckCircle2 size={11}/> Saved</span>}
+            {saveStatus === 'saving' && <span className="text-xs text-white/30">Saving…</span>}
           </div>
 
-          {config ? (
+          {config && cameraId ? (
             <div className="grid grid-cols-2 gap-3">
 
-              {/* Pan */}
-              <Card title="Pan Controller">
-                <div className="space-y-3">
-                  <SliderField label="Dead zone"   unit="px" decimals={0} step={1}
-                    min={0} max={200} value={config.pan.dead_zone_px}
-                    onChange={(v) => patchConfig({ pan_dead_zone_px: Math.round(v) })} />
-                  <SliderField label="Threshold"   unit="px" decimals={0} step={1}
-                    min={0} max={400} value={config.pan.thresh_px}
-                    onChange={(v) => patchConfig({ pan_thresh_px: Math.round(v) })} />
-                  <SliderField label="Gain (Kp)"   step={0.05}
-                    min={0.1} max={2.0} value={config.pan.kp}
-                    onChange={(v) => patchConfig({ pan_kp: v })} />
-                  <SliderField label="Max speed"   step={0.05}
-                    min={0.1} max={1.0} value={config.pan.max_speed}
-                    onChange={(v) => patchConfig({ pan_max_speed: v })} />
-                  <SliderField label="Min speed"   step={0.01}
-                    min={0.01} max={0.5} value={config.pan.min_speed}
-                    onChange={(v) => patchConfig({ pan_min_speed: v })} />
-                  <ToggleField label="Invert pan"
-                    value={config.pan.invert}
-                    onChange={(v) => patchConfig({ pan_invert: v })} />
-                </div>
-              </Card>
-
-              {/* Zoom */}
-              <Card title="Zoom Controller">
-                <div className="space-y-3">
-                  <SliderField label="Zoom-in  <"  step={0.01}
-                    min={0.05} max={0.5} value={config.zoom.zoom_in_frac}
-                    onChange={(v) => patchConfig({ zoom_in_frac: v })} />
-                  <SliderField label="Zoom-out >"  step={0.01}
-                    min={0.1} max={0.9} value={config.zoom.zoom_out_frac}
-                    onChange={(v) => patchConfig({ zoom_out_frac: v })} />
-                  <SliderField label="Speed"        step={0.05}
-                    min={0.1} max={1.0} value={config.zoom.speed}
-                    onChange={(v) => patchConfig({ zoom_speed: v })} />
-                  <SliderField label="EMA α"        step={0.01}
-                    min={0.01} max={1.0} value={config.zoom.ema_alpha}
-                    onChange={(v) => patchConfig({ zoom_ema_alpha: v })} />
-                  <ToggleField label="Invert zoom"
-                    value={config.zoom.invert}
-                    onChange={(v) => patchConfig({ zoom_invert: v })} />
-                </div>
-              </Card>
-
-              {/* Detection */}
-              <Card title="Detection">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-xs text-white/50">YOLO model</span>
-                    <select
-                      value={config.track.model_path}
-                      onChange={() => { /* model changes need reconnect, handled elsewhere */ }}
-                      className="flex-1 text-xs bg-surface-base border border-surface-border
-                                 rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
-                    >
-                      {YOLO_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+              {/* Wildlife model */}
+              <Card title="Wildlife Model" className="col-span-2">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    {models.map(m => {
+                      const active = config.track.model_path === m.path ||
+                                     config.track.model_path === m.name + '.pt'
+                      return (
+                        <button
+                          key={m.name}
+                          onClick={() => switchModel(m.name)}
+                          className={[
+                            'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                            active
+                              ? 'bg-green-900/30 border-green-700/60'
+                              : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
+                          ].join(' ')}
+                        >
+                          <p className="font-medium text-white truncate">{m.description}</p>
+                          {m.species.length > 0 && (
+                            <p className="text-white/35 mt-0.5 truncate">
+                              {m.species.slice(0, 3).join(', ')}
+                              {m.species.length > 3 && ` +${m.species.length - 3}`}
+                            </p>
+                          )}
+                          <p className="text-white/20 mt-0.5 uppercase text-[10px] tracking-wide">
+                            {m.source}{m.auto_download ? ' · auto-download' : ''}
+                          </p>
+                        </button>
+                      )
+                    })}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-xs text-white/50">Track class</span>
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="text-xs text-white/40">Track class</span>
                     <select
-                      value={config.track.detect_classes ?? 'null'}
-                      onChange={(e) => {
+                      value={config.track.detect_classes == null ? 'null' : String(config.track.detect_classes)}
+                      onChange={e => {
                         const v = e.target.value === 'null' ? null : parseInt(e.target.value)
                         patchConfig({ detect_classes: v })
                       }}
@@ -358,47 +352,98 @@ export function CameraTab() {
                                  rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
                     >
                       {CLASS_OPTIONS.map(o => (
-                        <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+                        <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
                   </div>
-                  <SliderField label="H-FOV"        unit="°" decimals={0} step={1}
+                </div>
+              </Card>
+
+              {/* Pan */}
+              <Card title="Pan Controller">
+                <div className="space-y-3">
+                  <SliderField label="Dead zone" unit="px" decimals={0} step={1}
+                    min={0} max={200} value={config.pan.dead_zone_px}
+                    onChange={v => patchConfig({ pan_dead_zone_px: Math.round(v) })} />
+                  <SliderField label="Threshold" unit="px" decimals={0} step={1}
+                    min={0} max={400} value={config.pan.thresh_px}
+                    onChange={v => patchConfig({ pan_thresh_px: Math.round(v) })} />
+                  <SliderField label="Gain (Kp)" step={0.05}
+                    min={0.1} max={2.0} value={config.pan.kp}
+                    onChange={v => patchConfig({ pan_kp: v })} />
+                  <SliderField label="Max speed" step={0.05}
+                    min={0.1} max={1.0} value={config.pan.max_speed}
+                    onChange={v => patchConfig({ pan_max_speed: v })} />
+                  <SliderField label="Min speed" step={0.01}
+                    min={0.01} max={0.5} value={config.pan.min_speed}
+                    onChange={v => patchConfig({ pan_min_speed: v })} />
+                  <ToggleField label="Invert pan"
+                    value={config.pan.invert}
+                    onChange={v => patchConfig({ pan_invert: v })} />
+                </div>
+              </Card>
+
+              {/* Zoom */}
+              <Card title="Zoom Controller">
+                <div className="space-y-3">
+                  <SliderField label="Zoom-in  <" step={0.01}
+                    min={0.05} max={0.5} value={config.zoom.zoom_in_frac}
+                    onChange={v => patchConfig({ zoom_in_frac: v })} />
+                  <SliderField label="Zoom-out >" step={0.01}
+                    min={0.1} max={0.9} value={config.zoom.zoom_out_frac}
+                    onChange={v => patchConfig({ zoom_out_frac: v })} />
+                  <SliderField label="Speed" step={0.05}
+                    min={0.1} max={1.0} value={config.zoom.speed}
+                    onChange={v => patchConfig({ zoom_speed: v })} />
+                  <SliderField label="EMA α" step={0.01}
+                    min={0.01} max={1.0} value={config.zoom.ema_alpha}
+                    onChange={v => patchConfig({ zoom_ema_alpha: v })} />
+                  <ToggleField label="Invert zoom"
+                    value={config.zoom.invert}
+                    onChange={v => patchConfig({ zoom_invert: v })} />
+                </div>
+              </Card>
+
+              {/* Detection */}
+              <Card title="Tracking">
+                <div className="space-y-3">
+                  <SliderField label="H-FOV" unit="°" decimals={0} step={1}
                     min={10} max={120} value={config.speed.hfov_deg}
-                    onChange={(v) => patchConfig({ hfov_deg: v })} />
+                    onChange={v => patchConfig({ hfov_deg: v })} />
                 </div>
               </Card>
 
               {/* Recording */}
               <Card title="Recording">
                 <div className="space-y-3">
-                  <SliderField label="Duration"  unit="s" decimals={0} step={5}
+                  <SliderField label="Duration" unit="s" decimals={0} step={5}
                     min={5} max={300} value={config.record.duration_sec}
-                    onChange={(v) => patchConfig({ record_duration_sec: Math.round(v) })} />
+                    onChange={v => patchConfig({ record_duration_sec: Math.round(v) })} />
                   <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-xs text-white/50">Record FPS</span>
+                    <span className="w-24 shrink-0 text-xs text-white/50">FPS</span>
                     <select
                       value={config.record.fps}
-                      onChange={(e) => patchConfig({ record_fps: parseInt(e.target.value) })}
+                      onChange={e => patchConfig({ record_fps: parseInt(e.target.value) })}
                       className="flex-1 text-xs bg-surface-base border border-surface-border
                                  rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
                     >
                       {[15, 20, 25, 30].map(fps => <option key={fps} value={fps}>{fps} fps</option>)}
                     </select>
                   </div>
-                  <div className="text-xs text-white/30 pt-1">
+                  <p className="text-xs text-white/25">
                     Output: {config.record.record_res[0]} × {config.record.record_res[1]} px
-                  </div>
+                  </p>
                 </div>
               </Card>
-
             </div>
           ) : (
             <div className="flex items-center justify-center h-40">
-              <span className="text-white/30 text-sm">Loading configuration…</span>
+              <span className="text-white/30 text-sm">
+                {cameraId ? 'Loading configuration…' : 'Select a camera'}
+              </span>
             </div>
           )}
         </div>
-
       </div>
     </div>
   )

@@ -4,15 +4,15 @@ import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ..core.session import get_session
+from ..core.camera_manager import get_manager
 
 router = APIRouter()
 
 _TELEMETRY_INTERVAL = 0.1   # seconds between outbound telemetry pushes
 
 
-@router.websocket("/ws/ptz")
-async def ptz_ws(ws: WebSocket) -> None:
+@router.websocket("/ws/ptz/{camera_id}")
+async def ptz_ws(ws: WebSocket, camera_id: str) -> None:
     """
     Bidirectional WebSocket for PTZ commands (inbound) and telemetry (outbound).
 
@@ -27,22 +27,25 @@ async def ptz_ws(ws: WebSocket) -> None:
 
     Outbound: {"type": "telemetry", ...session.to_telemetry()} at 10 Hz.
     """
+    entry = get_manager().get(camera_id)
+    if entry is None:
+        await ws.close(code=4004, reason=f"Camera '{camera_id}' not found")
+        return
+
     await ws.accept()
-    session = get_session()
+    session = entry.session
     last_telemetry_t = 0.0
 
     try:
         while True:
             now = asyncio.get_event_loop().time()
 
-            # Non-blocking receive with 50ms window
             try:
                 raw = await asyncio.wait_for(ws.receive_text(), timeout=0.05)
                 await _dispatch(json.loads(raw), session)
             except asyncio.TimeoutError:
                 pass
 
-            # Push telemetry at capped rate
             if now - last_telemetry_t >= _TELEMETRY_INTERVAL:
                 await ws.send_json({"type": "telemetry", **session.to_telemetry()})
                 last_telemetry_t = now
@@ -53,7 +56,7 @@ async def ptz_ws(ws: WebSocket) -> None:
 
 async def _dispatch(msg: dict, session) -> None:
     ptz = session._ptz
-    t = msg.get("type")
+    t   = msg.get("type")
 
     if t == "pan_tilt":
         if ptz:

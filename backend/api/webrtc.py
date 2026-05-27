@@ -9,26 +9,17 @@ from pydantic import BaseModel
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from av import VideoFrame
 
-from ..core.session import get_session
+from ..core.camera_manager import get_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/webrtc", tags=["webrtc"])
 
-# All active peer connections — kept so we can close them on shutdown
 _pcs: set[RTCPeerConnection] = set()
-
-# Black fallback frame returned before any camera is connected
 _BLACK_FRAME = np.zeros((288, 480, 3), dtype=np.uint8)
 
 
 class NDIVideoTrack(VideoStreamTrack):
-    """
-    aiortc VideoStreamTrack that delivers frames from Session to the browser.
-
-    Awaits session.next_frame() which is unblocked by session.push_frame()
-    called from the synchronous NDI capture thread via call_soon_threadsafe.
-    Falls back to a black frame if the camera is not yet connected.
-    """
+    """Delivers frames from a camera Session to the browser via WebRTC."""
 
     kind = "video"
 
@@ -43,45 +34,41 @@ class NDIVideoTrack(VideoStreamTrack):
         if frame_bgr is None:
             frame_bgr = _BLACK_FRAME
         else:
-            # Wait for the next pushed frame (max 100ms to avoid stalling)
             try:
                 frame_bgr = await asyncio.wait_for(self._session.next_frame(), timeout=0.1)
             except asyncio.TimeoutError:
                 frame_bgr = self._session.latest_frame() or _BLACK_FRAME
 
-        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        rgb         = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         video_frame = VideoFrame.from_ndarray(rgb, format="rgb24")
-        video_frame.pts = pts
+        video_frame.pts       = pts
         video_frame.time_base = time_base
         return video_frame
 
 
-# ── signaling endpoint ─────────────────────────────────────────────────────────
-
 class OfferRequest(BaseModel):
-    sdp: str
+    sdp:  str
     type: str
 
 
-@router.post("/offer")
-async def webrtc_offer(req: OfferRequest):
-    """
-    WebRTC SDP offer/answer exchange.
-    Browser sends its offer; server adds an NDI video track and returns the answer.
-    ICE negotiation proceeds over the Tailscale peer addresses automatically.
-    """
-    session = get_session()
+@router.post("/{camera_id}/offer")
+async def webrtc_offer(camera_id: str, req: OfferRequest):
+    """SDP offer/answer for a specific camera."""
+    entry = get_manager().get(camera_id)
+    if entry is None:
+        raise HTTPException(404, f"Camera '{camera_id}' not found")
+
     pc = RTCPeerConnection()
     _pcs.add(pc)
 
     @pc.on("connectionstatechange")
     async def on_state_change():
-        logger.info("WebRTC state: %s", pc.connectionState)
+        logger.info("WebRTC [%s] state: %s", camera_id, pc.connectionState)
         if pc.connectionState in ("failed", "closed"):
             await pc.close()
             _pcs.discard(pc)
 
-    pc.addTrack(NDIVideoTrack(session))
+    pc.addTrack(NDIVideoTrack(entry.session))
 
     offer = RTCSessionDescription(sdp=req.sdp, type=req.type)
     await pc.setRemoteDescription(offer)
@@ -91,10 +78,7 @@ async def webrtc_offer(req: OfferRequest):
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
 
-# ── lifecycle ──────────────────────────────────────────────────────────────────
-
 async def close_all() -> None:
-    """Gracefully close every active peer connection on server shutdown."""
     if _pcs:
         await asyncio.gather(*[pc.close() for pc in list(_pcs)], return_exceptions=True)
     _pcs.clear()

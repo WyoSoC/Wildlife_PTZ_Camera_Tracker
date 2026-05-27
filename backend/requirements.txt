@@ -32,3 +32,8 @@ deep-sort-realtime>=1.3
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 websockets>=12.0
+
+# ── System metrics ─────────────────────────────────────────────────────────────
+psutil>=5.9
+# NVIDIA GPU metrics — optional; graceful no-op when absent
+nvidia-ml-py>=12.0

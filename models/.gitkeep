@@ -1,0 +1,4 @@
+# Place custom wildlife .pt model files here.
+# See backend/core/models.py for the registry and well-known filenames.
+# Pre-trained North American wildlife models:
+#   https://github.com/WyoSoC/Wildlife-YOLO-Models
