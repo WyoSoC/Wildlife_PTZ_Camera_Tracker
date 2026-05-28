@@ -23,6 +23,11 @@ build/
 # Build outputs
 dist/
 
+# Model weights — large binaries, not tracked in git
+models/*.pt
+models/*.onnx
+models/*.engine
+
 # macOS
 .DS_Store
 

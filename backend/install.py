@@ -69,8 +69,9 @@ def torch_install_args(platform_id: str) -> list[str]:
     base = ['torch', 'torchvision']
 
     if platform_id == 'jetson':
-        # JetPack 6 ships its own CUDA-enabled torch; prefer that wheel index.
-        return base + ['--index-url', 'https://pypi.jetson-ai-lab.dev/jp6/cu126']
+        # JetPack 6 / CUDA 12.6 wheels — official PyTorch index for aarch64+cu126.
+        # (pypi.jetson-ai-lab.dev no longer resolves as of mid-2026.)
+        return base + ['--index-url', 'https://download.pytorch.org/whl/cu126']
 
     if platform_id == 'cuda':
         # Desktop / laptop NVIDIA — CUDA 12.4 wheels.
@@ -128,7 +129,7 @@ def main() -> None:
     # ── Step 1: PyTorch ────────────────────────────────────────────────────────
     print('\n[1/2] PyTorch')
     if pid == 'jetson' and _torch_already_installed():
-        print('  torch already installed by JetPack — skipping')
+        print('  torch already present — skipping')
     else:
         run(pip + torch_install_args(pid), args.dry_run)
 
