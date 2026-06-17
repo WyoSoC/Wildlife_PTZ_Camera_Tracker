@@ -110,6 +110,42 @@ Use a USB or Bluetooth gamepad for joystick control (DualSense, Xbox, generic HI
 
 ---
 
+## Running the Server
+
+### First time
+
+```bash
+# 1. Create and activate a virtual environment (Python 3.11+)
+python3.11 -m venv .venv && source .venv/bin/activate
+
+# 2. Install backend dependencies (auto-detects platform / GPU)
+cd backend && python install.py && cd ..
+
+# 3. Build the frontend (required before first production run)
+cd frontend && npm install && npm run build && cd ..
+
+# 4. Start the server
+python run_server.py
+```
+
+Open `http://localhost:9090` in your browser.
+Interactive API docs: `http://localhost:9090/docs`.
+
+### Subsequent runs
+
+```bash
+source .venv/bin/activate
+python run_server.py                  # production (serves pre-built frontend)
+python run_server.py --dev            # development (auto-reload, no frontend build needed)
+python run_server.py --port 8080      # custom port
+python run_server.py --host 127.0.0.1 # bind to localhost only
+```
+
+> **Always run from the project root** (the directory containing `backend/` and `frontend/`).
+> Running from inside `backend/` will fail with `ModuleNotFoundError: No module named 'backend'`.
+
+---
+
 ## Development Setup
 
 ### 1  Backend
