@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     manager.init_async()            # binds all existing sessions to the event loop
 
     # Log startup device info from the default camera session
-    default = manager.get("cam-1")
+    default = manager.get("server-1")
     if default:
         dev  = select_device(default.session.config.device.device)
         info = device_info(dev)

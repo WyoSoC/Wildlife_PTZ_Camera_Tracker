@@ -27,11 +27,14 @@ deep-sort-realtime>=1.3
 
 # ── NDI SDK Python bindings ────────────────────────────────────────────────────
 # Optional — required only for NDI cameras (BirdDog, Bolin).
-# Install from the NDI Tools SDK wheel (not on PyPI):
-#   pip install /path/to/NDIlib-*.whl
+# Requires the NDI Advanced SDK to be installed first:
+#   https://ndi.video/tools/ndi-sdk/
+# Then install the Python bindings:
+ndi-python>=6.3
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 websockets>=12.0
+huggingface_hub>=0.23
 
 # ── System metrics ─────────────────────────────────────────────────────────────
 psutil>=5.9

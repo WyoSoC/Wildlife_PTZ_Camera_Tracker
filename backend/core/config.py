@@ -17,8 +17,8 @@ class VideoConfig:
 
 @dataclass
 class TrackConfig:
-    detect_classes: Optional[int] = 0  # 0=person, None=all COCO classes
-    model_path: str = "yolov8s.pt"
+    detect_classes: Optional[int] = None  # None = all model classes
+    model_path: str = "yolo26s.pt"
     tracker_max_age: int = 30
 
 
@@ -92,14 +92,14 @@ class AppConfig:
 BIRDDOG = AppConfig(
     camera=CameraConfig(source_match="birddog"),
     video=VideoConfig(process_res=(480, 288)),
-    track=TrackConfig(model_path="yolov8s.pt"),
+    track=TrackConfig(model_path="yolo26s.pt"),
     record=RecordConfig(duration_sec=40, fps=30, record_res=(480, 288)),
 )
 
 BOLIN = AppConfig(
     camera=CameraConfig(source_match="bolin"),
     video=VideoConfig(process_res=(720, 488)),
-    track=TrackConfig(model_path="yolov8n.pt"),
+    track=TrackConfig(model_path="yolo26n.pt"),
     record=RecordConfig(duration_sec=20, fps=20, record_res=(480, 288)),
 )
 

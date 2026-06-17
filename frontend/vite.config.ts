@@ -13,10 +13,11 @@ export default defineConfig({
 
   server: {
     port: 5173,
-    // Proxy only applies during local dev (not used on GitHub Pages)
+    // Proxy only applies during local dev (not used on GitHub Pages).
+    // Override with: BACKEND_PORT=8090 npm run dev
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/ws':  { target: 'ws://localhost:8080', ws: true },
+      '/api': `http://localhost:${process.env.BACKEND_PORT ?? 8080}`,
+      '/ws':  { target: `ws://localhost:${process.env.BACKEND_PORT ?? 8080}`, ws: true },
     },
   },
 

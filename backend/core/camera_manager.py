@@ -1,9 +1,9 @@
 """
 Multi-camera session manager.
 
-Each camera is identified by a string ID (e.g. "cam-1").
+Each camera is identified by a string ID (e.g. "server-1").
 CameraManager owns a Session and a TrackLoop thread for each camera.
-A default camera ("cam-1") is created automatically at startup.
+A default camera ("server-1") is created automatically at startup.
 """
 from __future__ import annotations
 import asyncio
@@ -132,7 +132,7 @@ class CameraManager:
 
 _manager = CameraManager()
 # Create the default camera at import time
-_manager.create("cam-1")
+_manager.create("server-1")
 
 
 def get_manager() -> CameraManager:

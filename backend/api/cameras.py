@@ -130,14 +130,17 @@ async def stop(camera_id: str):
 async def status(camera_id: str):
     entry = _get_entry(camera_id)
     s     = entry.session
+    cfg   = s.config
     return {
-        "camera_id":   camera_id,
-        "connected":   s.connected,
-        "running":     entry.is_running(),
-        "source_name": s.source_name,
-        "mode":        s.mode,
-        "device":      s.device,
-        "device_name": s.device_name,
+        "camera_id":    camera_id,
+        "connected":    s.connected,
+        "running":      entry.is_running(),
+        "source_name":  s.source_name,
+        "source_match": cfg.camera.source_match,
+        "rtsp_url":     cfg.camera.reolink_rtsp_url,
+        "mode":         s.mode,
+        "device":       s.device,
+        "device_name":  s.device_name,
     }
 
 
@@ -178,7 +181,7 @@ async def update_config(camera_id: str, update: ConfigUpdate):
     if update.zoom_speed         is not None: z.speed            = update.zoom_speed
     if update.zoom_invert        is not None: z.invert           = update.zoom_invert
     if update.zoom_ema_alpha     is not None: z.ema_alpha        = update.zoom_ema_alpha
-    if update.detect_classes     is not None: t.detect_classes   = update.detect_classes
+    if "detect_classes" in update.model_fields_set: t.detect_classes = update.detect_classes
     if update.record_duration_sec is not None: r.duration_sec    = update.record_duration_sec
     if update.record_fps         is not None: r.fps              = update.record_fps
     if update.hfov_deg           is not None: s.hfov_deg         = update.hfov_deg

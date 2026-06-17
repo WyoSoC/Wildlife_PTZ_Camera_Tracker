@@ -15,8 +15,17 @@ export function ConnectScreen() {
   const normalise = (raw: string): string => {
     let u = raw.trim()
     if (!u) return u
-    // Auto-prepend https:// if no scheme
-    if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+    if (!/^https?:\/\//i.test(u)) {
+      const hostname = u.split('/')[0].split(':')[0]
+      const isLocal =
+        hostname === 'localhost' ||
+        hostname === '0.0.0.0'  ||
+        /^127\./.test(hostname) ||
+        /^10\./.test(hostname)  ||
+        /^192\.168\./.test(hostname) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+      u = (isLocal ? 'http://' : 'https://') + u
+    }
     return u.replace(/\/$/, '')
   }
 
@@ -77,8 +86,9 @@ export function ConnectScreen() {
                        text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
           />
           <p className="text-xs text-white/30">
-            Use your Tailscale URL for remote access, or{' '}
-            <code className="text-white/50">http://localhost:8080</code> locally.
+            Use your Tailscale hostname for remote access, or{' '}
+            <code className="text-white/50">localhost:PORT</code> for local connections.
+            <code className="text-white/50"> http://</code> is used automatically for local addresses.
           </p>
         </div>
 
@@ -164,11 +174,9 @@ export function ConnectScreen() {
       )}
 
       <p className="mt-8 text-xs text-white/20">
-        Run{' '}
-        <code className="text-white/35">
-          tailscale serve https / http://localhost:8080
-        </code>{' '}
-        on the edge server for HTTPS access.
+        For HTTPS access over Tailscale, run{' '}
+        <code className="text-white/35">tailscale serve --bg http://localhost:PORT</code>{' '}
+        on the edge server, then connect using the Tailscale hostname.
       </p>
     </div>
   )

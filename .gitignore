@@ -29,3 +29,10 @@ dist/
 # Editor
 .vscode/
 .idea/
+
+# Model weights — large binaries, not tracked in git
+*.pt
+*.onnx
+*.engine
+*.mlpackage
+models/

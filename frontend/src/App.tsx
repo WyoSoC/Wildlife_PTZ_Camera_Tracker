@@ -18,10 +18,15 @@ const TABS: { id: TabId; label: string }[] = [
 ]
 
 function AppShell() {
-  const { server, cameras, activeCameraId, setActiveCameraId } = useServer()
+  const { server, probing, cameras, activeCameraId, setActiveCameraId } = useServer()
   const [activeTab, setActiveTab] = useState<TabId>('camera')
   const ws = useWebSocket(activeCameraId)
 
+  if (probing) return (
+    <div className="min-h-screen bg-surface-base flex items-center justify-center">
+      <p className="text-white/30 text-sm animate-pulse">Connecting…</p>
+    </div>
+  )
   if (!server) return <ConnectScreen />
 
   return (

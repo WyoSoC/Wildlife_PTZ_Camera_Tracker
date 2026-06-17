@@ -116,6 +116,9 @@ export const api = {
   models: {
     list: () =>
       get<{ models: ModelInfo[]; models_dir: string }>('/api/models'),
+
+    download: (name: string) =>
+      post<{ status: string; path: string }>(`/api/models/${encodeURIComponent(name)}/download`),
   },
 
   webrtc: {

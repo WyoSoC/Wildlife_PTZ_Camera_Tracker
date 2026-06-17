@@ -83,6 +83,17 @@ NDI SDK is optional — the server starts without it and supports Reolink RTSP c
 - [Tailscale](https://tailscale.com/) *(for remote HTTPS access)*
 - Node.js 20+ and npm *(build-time only — not needed at runtime)*
 
+**Ubuntu 22.04 quick-start** (if Python 3.11 or Node.js are not already installed):
+
+```bash
+# Python 3.11 + venv
+sudo apt install python3.11 python3.11-venv
+
+# Node.js 20+ via NodeSource (the Ubuntu default is too old)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install nodejs
+```
+
 Platform-specific GPU prerequisites:
 
 | Platform | Prerequisite |
@@ -109,7 +120,7 @@ dependencies from `requirements.txt`.
 
 ```bash
 # Run from the project root (the directory that contains backend/ and frontend/)
-python -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 
 cd backend
 python install.py          # detects platform and installs everything
@@ -120,6 +131,9 @@ python install.py          # detects platform and installs everything
 cd ..
 python run_server.py --dev        # starts uvicorn with auto-reload
 ```
+
+> **Note:** use `python3.11` (or whichever `python3.x` you installed) to create the
+> venv — `python` is not available by default on Ubuntu.
 
 To preview what will be installed without running anything:
 
@@ -145,7 +159,11 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Vite proxies `/api` and `/ws` to `:8080`, so the backend must be running.
+Vite proxies `/api` and `/ws` to `:8080`, so the backend must be running first.
+
+> **Security note:** run `npm audit fix` after install to pull in patched dependencies.
+> If it reports breaking-change upgrades (e.g. a major Vite bump), use `npm audit fix --force`
+> and verify the build still passes with `npm run build`.
 
 ---
 
@@ -161,6 +179,11 @@ cd ..
 python run_server.py                  # default: 0.0.0.0:8080
 python run_server.py --port 9090      # custom port
 ```
+
+> **Important:** always build the frontend **before** starting the server.
+> The SPA route is only registered at startup when `backend/static/` exists.
+> If you start the server first and build later, requests to `/` return 404 until
+> the server is restarted.
 
 ---
 
@@ -200,7 +223,7 @@ model.export(format="engine", half=True, device=0, imgsz=640)
 EOF
 ```
 
-Then set `track.model_path = "yolov8n.engine"` in your profile or via `PUT /api/cameras/config`.
+Then set `track.model_path = "yolov8n.engine"` in your profile or via `PUT /api/cameras/{camera_id}/config`.
 
 ---
 
@@ -219,24 +242,36 @@ WebRTC ICE negotiation works over Tailscale peer addresses automatically.
 
 ## REST API Reference
 
-All endpoints are prefixed `/api/`.
+All endpoints are prefixed `/api/`. Interactive docs are available at
+`http://localhost:8080/docs` when the server is running.
 
-### Cameras
+A default camera named `cam-1` is created automatically at startup.
+Use it immediately, or create additional cameras with `POST /api/cameras`.
+
+### Camera management
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/cameras` | List all cameras and their status |
+| `POST` | `/cameras` | Create a camera (`camera_id?`, `profile?`) |
+| `DELETE` | `/cameras/{camera_id}` | Remove a camera |
 | `GET` | `/cameras/discover` | Scan LAN for NDI sources (~2 s) |
-| `POST` | `/cameras/connect` | Set active source (`source_match`, `source_type`, `rtsp_url`) |
-| `POST` | `/cameras/start` | Start background capture + tracking loop |
-| `POST` | `/cameras/stop` | Stop the loop |
-| `GET` | `/cameras/status` | `{connected, running, source_name, mode, device, device_name}` |
-| `POST` | `/cameras/disconnect` | Alias for stop |
-| `GET` | `/cameras/config` | Full `AppConfig` as JSON |
-| `PUT` | `/cameras/config` | Partial update — any subset of config fields |
 | `GET` | `/cameras/profiles` | List named profiles (`birddog`, `bolin`) |
-| `POST` | `/cameras/profiles/{name}/load` | Replace active config with a named profile |
 
-#### `PUT /cameras/config` fields
+### Per-camera control
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/cameras/{camera_id}/connect` | Set source (`source_match`, `source_type`, `rtsp_url?`) |
+| `POST` | `/cameras/{camera_id}/start` | Start background capture + tracking loop |
+| `POST` | `/cameras/{camera_id}/stop` | Stop the loop |
+| `GET` | `/cameras/{camera_id}/status` | `{connected, running, source_name, mode, device, device_name}` |
+| `GET` | `/cameras/{camera_id}/config` | Full config as JSON |
+| `PUT` | `/cameras/{camera_id}/config` | Partial update — any subset of config fields |
+| `POST` | `/cameras/{camera_id}/model` | Switch inference model by name |
+| `POST` | `/cameras/{camera_id}/profiles/{name}/load` | Replace config with a named profile |
+
+#### `PUT /cameras/{camera_id}/config` fields
 
 ```json
 {
@@ -254,7 +289,8 @@ All endpoints are prefixed `/api/`.
   "detect_classes": 0,
   "record_duration_sec": 40,
   "record_fps": 30,
-  "hfov_deg": 60.0
+  "hfov_deg": 60.0,
+  "model_path": "yolov8s.pt"
 }
 ```
 
@@ -264,22 +300,35 @@ All fields are optional — only supplied fields are updated.
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/webrtc/offer` | SDP offer/answer — browser sends its offer, receives the server answer |
+| `POST` | `/webrtc/{camera_id}/offer` | SDP offer/answer — browser sends its offer, receives the server answer |
 
 ### Recordings
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/recordings` | List MP4 files in `videos/with_box/` |
+| `GET` | `/recordings` | List MP4 files |
 | `GET` | `/recordings/{filename}` | Download / stream a recording |
 | `GET` | `/logs` | List joystick CSV logs |
 | `GET` | `/logs/{filename}` | Download a CSV log |
+
+### Models
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/models` | List built-in and custom models with metadata |
+
+### System
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/system/info` | Static platform info: OS, device name, VRAM, CUDA version |
+| `GET` | `/system/metrics` | Live CPU %, memory, GPU utilisation, temperature, power |
 
 ---
 
 ## WebSocket Protocol
 
-**`ws://host/ws/ptz`** — bidirectional.
+**`ws://host/ws/ptz/{camera_id}`** — bidirectional.
 
 ### Inbound (browser → server)
 
@@ -389,10 +438,12 @@ Deadzone: 0.1 (values below ignored).
 │   │   ├── session.py       # App-wide singleton; thread→asyncio frame bridge
 │   │   └── track_loop.py    # TrackLoop daemon thread; RtspCapture
 │   ├── api/
-│   │   ├── cameras.py       # /api/cameras/* (discovery, connect, start, config)
-│   │   ├── ptz.py           # ws://.../ws/ptz  (commands + telemetry)
-│   │   ├── webrtc.py        # /api/webrtc/offer  (SDP exchange, NDIVideoTrack)
-│   │   └── recordings.py    # /api/recordings/* + /api/logs/*
+│   │   ├── cameras.py       # /api/cameras/* (multi-camera management, config)
+│   │   ├── ptz.py           # ws://.../ws/ptz/{camera_id}  (commands + telemetry)
+│   │   ├── webrtc.py        # /api/webrtc/{camera_id}/offer  (SDP exchange, NDIVideoTrack)
+│   │   ├── recordings.py    # /api/recordings/* + /api/logs/*
+│   │   ├── system.py        # /api/system/info + /api/system/metrics
+│   │   └── models.py        # /api/models  (model registry)
 │   ├── main.py              # FastAPI app, lifespan, SPA fallback, entry point
 │   ├── install.py           # Auto-detecting installer (Jetson/CUDA/macOS/RPi/CPU)
 │   └── requirements.txt     # All deps except torch (installed by install.py)

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RefreshCw, Wifi, Camera, CheckCircle2, Play, Square, Plus, Trash2 } from 'lucide-react'
+import { RefreshCw, Wifi, Camera, CheckCircle2, Play, Square, Plus, Trash2, Download, Loader } from 'lucide-react'
 import { api } from '../api/client'
 import { useServer } from '../context/ServerContext'
 import type { CameraConfig, CameraStatus, ConfigUpdate, ModelInfo, NDISource } from '../types'
@@ -7,15 +7,6 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SliderField, ToggleField } from '../components/ui/SliderField'
 import { StatusDot } from '../components/ui/Badge'
-
-const CLASS_OPTIONS = [
-  { value: 'null', label: 'All species (model default)' },
-  { value: '14',   label: 'Birds (COCO class 14)' },
-  { value: '21',   label: 'Bear  (COCO class 21)' },
-  { value: '17',   label: 'Horse (COCO class 17)' },
-  { value: '18',   label: 'Sheep (COCO class 18)' },
-  { value: '0',    label: 'Person (COCO class 0)' },
-]
 
 export function CameraTab() {
   const { cameras, activeCameraId, setActiveCameraId, refreshCameras } = useServer()
@@ -29,6 +20,8 @@ export function CameraTab() {
   const [reolinkUrl,  setReolinkUrl]  = useState('')
   const [saveStatus,  setSaveStatus]  = useState<'idle' | 'saving' | 'saved'>('idle')
   const [loopLoading, setLoopLoading] = useState(false)
+  const [downloading, setDownloading] = useState<Set<string>>(new Set())
+  const [dlError,     setDlError]     = useState<Record<string, string>>({})
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
   // Load config, status, models when active camera changes
@@ -115,6 +108,21 @@ export function CameraTab() {
     } catch (e) { console.error(e) }
   }, [cameraId])
 
+  const downloadModel = useCallback(async (name: string) => {
+    setDownloading(prev => new Set(prev).add(name))
+    setDlError(prev => { const n = { ...prev }; delete n[name]; return n })
+    try {
+      await api.models.download(name)
+      const { models: refreshed } = await api.models.list()
+      setModels(refreshed)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setDlError(prev => ({ ...prev, [name]: msg }))
+    } finally {
+      setDownloading(prev => { const n = new Set(prev); n.delete(name); return n })
+    }
+  }, [])
+
   const patchConfig = useCallback((update: ConfigUpdate) => {
     if (!cameraId) return
     setConfig(prev => {
@@ -167,6 +175,44 @@ export function CameraTab() {
         {/* ── Left panel ── */}
         <div className="w-72 shrink-0 space-y-3">
 
+          {/* NDI discovery */}
+          <Card title="NDI Sources">
+            <div className="space-y-2">
+              <Button onClick={scan} loading={scanning} size="sm" className="w-full">
+                <RefreshCw size={12} />
+                {scanning ? 'Scanning…' : 'Scan Network'}
+              </Button>
+              {sources.length === 0 && !scanning && (
+                <p className="text-xs text-white/30 text-center py-2">No sources — click Scan</p>
+              )}
+              {sources.map((src) => {
+                const active = camStatus?.source_name === src.name && camStatus?.running
+                return (
+                  <div
+                    key={src.name}
+                    className="flex items-center gap-2 p-2 rounded-md bg-surface-raised
+                               border border-surface-border hover:border-blue-600/50 group"
+                  >
+                    <Wifi size={13} className="text-blue-400 shrink-0" />
+                    <span className="flex-1 text-xs truncate">{src.name}</span>
+                    {active
+                      ? <CheckCircle2 size={13} className="text-green-400 shrink-0" />
+                      : (
+                        <button
+                          onClick={() => connectAndStart(src)}
+                          className="text-xs text-blue-400 hover:text-blue-300 opacity-0
+                                     group-hover:opacity-100 transition-opacity"
+                        >
+                          Use
+                        </button>
+                      )
+                    }
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+
           {/* Camera list */}
           <Card title="Cameras">
             <div className="space-y-1.5">
@@ -206,44 +252,6 @@ export function CameraTab() {
               >
                 <Plus size={11} /> Add Camera
               </button>
-            </div>
-          </Card>
-
-          {/* NDI discovery */}
-          <Card title="NDI Sources">
-            <div className="space-y-2">
-              <Button onClick={scan} loading={scanning} size="sm" className="w-full">
-                <RefreshCw size={12} />
-                {scanning ? 'Scanning…' : 'Scan Network'}
-              </Button>
-              {sources.length === 0 && !scanning && (
-                <p className="text-xs text-white/30 text-center py-2">No sources — click Scan</p>
-              )}
-              {sources.map((src) => {
-                const active = camStatus?.source_name === src.name && camStatus?.running
-                return (
-                  <div
-                    key={src.name}
-                    className="flex items-center gap-2 p-2 rounded-md bg-surface-raised
-                               border border-surface-border hover:border-blue-600/50 group"
-                  >
-                    <Wifi size={13} className="text-blue-400 shrink-0" />
-                    <span className="flex-1 text-xs truncate">{src.name}</span>
-                    {active
-                      ? <CheckCircle2 size={13} className="text-green-400 shrink-0" />
-                      : (
-                        <button
-                          onClick={() => connectAndStart(src)}
-                          className="text-xs text-blue-400 hover:text-blue-300 opacity-0
-                                     group-hover:opacity-100 transition-opacity"
-                        >
-                          Use
-                        </button>
-                      )
-                    }
-                  </div>
-                )
-              })}
             </div>
           </Card>
 
@@ -310,52 +318,158 @@ export function CameraTab() {
 
               {/* Wildlife model */}
               <Card title="Wildlife Model" className="col-span-2">
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    {models.map(m => {
-                      const active = config.track.model_path === m.path ||
-                                     config.track.model_path === m.name + '.pt'
-                      return (
-                        <button
-                          key={m.name}
-                          onClick={() => switchModel(m.name)}
-                          className={[
-                            'text-left p-2.5 rounded-lg border text-xs transition-colors',
-                            active
-                              ? 'bg-green-900/30 border-green-700/60'
-                              : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
-                          ].join(' ')}
-                        >
-                          <p className="font-medium text-white truncate">{m.description}</p>
-                          {m.species.length > 0 && (
-                            <p className="text-white/35 mt-0.5 truncate">
-                              {m.species.slice(0, 3).join(', ')}
-                              {m.species.length > 3 && ` +${m.species.length - 3}`}
-                            </p>
-                          )}
-                          <p className="text-white/20 mt-0.5 uppercase text-[10px] tracking-wide">
-                            {m.source}{m.auto_download ? ' · auto-download' : ''}
-                          </p>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="flex items-center gap-3 pt-1">
-                    <span className="text-xs text-white/40">Track class</span>
-                    <select
-                      value={config.track.detect_classes == null ? 'null' : String(config.track.detect_classes)}
-                      onChange={e => {
-                        const v = e.target.value === 'null' ? null : parseInt(e.target.value)
-                        patchConfig({ detect_classes: v })
-                      }}
-                      className="flex-1 text-xs bg-surface-base border border-surface-border
-                                 rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
-                    >
-                      {CLASS_OPTIONS.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="space-y-4">
+
+                  {/* UWyo wildlife models */}
+                  {(() => {
+                    const wildlife = models.filter(m => m.source === 'uwyo')
+                    if (!wildlife.length) return null
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
+                          UWyo Wildlife Models
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {wildlife.map(m => {
+                            const active  = config.track.model_path === m.path ||
+                                            config.track.model_path === m.name + '.pt'
+                            const isDling = downloading.has(m.name)
+                            const err     = dlError[m.name]
+
+                            if (!m.downloaded) {
+                              return (
+                                <div key={m.name}
+                                  className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
+                                >
+                                  <p className="font-medium text-white/60 truncate">{m.description}</p>
+                                  {m.species.length > 0 && (
+                                    <p className="text-white/30 truncate">
+                                      {m.species.slice(0, 3).join(', ')}
+                                      {m.species.length > 3 && ` +${m.species.length - 3}`}
+                                    </p>
+                                  )}
+                                  {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
+                                  <button
+                                    onClick={() => downloadModel(m.name)}
+                                    disabled={isDling}
+                                    className="flex items-center gap-1 text-blue-400 hover:text-blue-300
+                                               disabled:opacity-50 transition-colors"
+                                  >
+                                    {isDling
+                                      ? <><Loader size={11} className="animate-spin" /> Downloading…</>
+                                      : <><Download size={11} /> Download</>
+                                    }
+                                  </button>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <button
+                                key={m.name}
+                                onClick={() => switchModel(m.name)}
+                                className={[
+                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                                  active
+                                    ? 'bg-green-900/30 border-green-700/60'
+                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
+                                ].join(' ')}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="font-medium text-white truncate">{m.description}</p>
+                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+                                </div>
+                                {m.species.length > 0 && (
+                                  <p className="text-white/35 mt-0.5 truncate">
+                                    {m.species.slice(0, 3).join(', ')}
+                                    {m.species.length > 3 && ` +${m.species.length - 3}`}
+                                  </p>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* MegaDetector + other custom files */}
+                  {(() => {
+                    const other = models.filter(m => m.source === 'megadetector' || (m.source === 'custom' && m.downloaded))
+                    if (!other.length) return null
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
+                          Other Custom
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {other.map(m => {
+                            const active = config.track.model_path === m.path ||
+                                           config.track.model_path === m.name + '.pt'
+                            return (
+                              <button key={m.name} onClick={() => switchModel(m.name)}
+                                className={[
+                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                                  active
+                                    ? 'bg-green-900/30 border-green-700/60'
+                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
+                                ].join(' ')}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="font-medium text-white truncate">{m.description}</p>
+                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+                                </div>
+                                {m.species.length > 0 && (
+                                  <p className="text-white/35 mt-0.5 truncate">{m.species.join(', ')}</p>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* COCO fallback models */}
+                  {(() => {
+                    const coco = models.filter(m => m.source === 'ultralytics')
+                    if (!coco.length) return null
+                    return (
+                      <details className="group">
+                        <summary className="cursor-pointer text-[10px] font-semibold text-white/25
+                                            uppercase tracking-wider select-none hover:text-white/40
+                                            transition-colors list-none flex items-center gap-1">
+                          <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                          COCO Fallback Models
+                        </summary>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          {coco.map(m => {
+                            const active = config.track.model_path === m.path ||
+                                           config.track.model_path === m.name + '.pt'
+                            return (
+                              <button key={m.name} onClick={() => switchModel(m.name)}
+                                className={[
+                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                                  active
+                                    ? 'bg-green-900/30 border-green-700/60'
+                                    : 'bg-surface-raised border-surface-border hover:border-white/10',
+                                ].join(' ')}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="font-medium text-white/50 truncate">{m.description}</p>
+                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+                                </div>
+                                <p className="text-white/20 mt-0.5 uppercase text-[10px] tracking-wide">
+                                  {m.name}
+                                </p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </details>
+                    )
+                  })()}
+
                 </div>
               </Card>
 

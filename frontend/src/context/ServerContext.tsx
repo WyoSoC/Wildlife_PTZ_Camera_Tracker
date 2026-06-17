@@ -10,6 +10,7 @@ const LS_ACTIVE_URL = 'wildlife-tracker-active-url'
 interface ServerContextValue {
   // null  = not connected yet  (ConnectScreen is shown)
   server:            ServerConfig | null
+  probing:           boolean        // true while auto-detecting server on startup
   cameras:           CameraListItem[]
   activeCameraId:    string | null
   savedServers:      ServerConfig[]
@@ -21,6 +22,7 @@ interface ServerContextValue {
 
 const ServerContext = createContext<ServerContextValue>({
   server:            null,
+  probing:           true,
   cameras:           [],
   activeCameraId:    null,
   savedServers:      [],
@@ -36,6 +38,7 @@ export function useServer(): ServerContextValue {
 
 export function ServerProvider({ children }: { children: React.ReactNode }) {
   const [server,         setServer]         = useState<ServerConfig | null>(null)
+  const [probing,        setProbing]        = useState(true)
   const [cameras,        setCameras]        = useState<CameraListItem[]>([])
   const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
   const [savedServers,   setSavedServers]   = useState<ServerConfig[]>(() => {
@@ -74,12 +77,41 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(LS_ACTIVE_URL)
   }, [])
 
-  // Auto-reconnect to last server on page load
+  // On startup: verify the saved server is still reachable, then fall back to
+  // probing the page's own origin — so the UI connects automatically when the
+  // frontend is served directly by the backend (any port, any host).
   useEffect(() => {
-    const lastUrl = localStorage.getItem(LS_ACTIVE_URL)
-    if (!lastUrl) return
-    const saved = savedServers.find(s => s.url === lastUrl)
-    if (saved) connect(saved)
+    const startup = async () => {
+      const lastUrl = localStorage.getItem(LS_ACTIVE_URL)
+      if (lastUrl) {
+        const saved = savedServers.find(s => s.url === lastUrl)
+        if (saved) {
+          setServerConfig(saved.url, saved.apiKey ?? '')
+          try {
+            await api.system.info()
+            connect(saved)
+            return
+          } catch {
+            setServerConfig('', '')
+            localStorage.removeItem(LS_ACTIVE_URL)
+            // Saved server unreachable — fall through to same-origin probe
+          }
+        }
+      }
+      // Probe the page's own origin; works when served by the backend itself
+      const origin = window.location.origin
+      if (origin.startsWith('http')) {
+        setServerConfig(origin, '')
+        try {
+          await api.system.info()
+          connect({ url: origin, name: window.location.hostname, apiKey: '' })
+          return
+        } catch {
+          setServerConfig('', '')
+        }
+      }
+    }
+    startup().finally(() => setProbing(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -93,7 +125,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ServerContext.Provider value={{
-      server, cameras, activeCameraId, savedServers,
+      server, probing, cameras, activeCameraId, savedServers,
       connect, disconnect, setActiveCameraId, refreshCameras,
     }}>
       {children}

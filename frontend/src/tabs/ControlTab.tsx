@@ -20,14 +20,17 @@ interface Props {
 }
 
 export function ControlTab({ ws, cameraId }: Props) {
-  const { stream, rtcState, startWebRTC, stopWebRTC } = useWebRTC(cameraId)
+  const { stream, rtcState, rtcError, startWebRTC, stopWebRTC } = useWebRTC(cameraId)
   const { telemetry, sendPanTilt, sendZoom, sendStop, sendAutofocus, setMode, setRecording } = ws
   const [camStatus,   setCamStatus]   = useState<CameraStatus | null>(null)
   const [loopLoading, setLoopLoading] = useState(false)
 
   useEffect(() => {
     if (!cameraId) return
-    api.cameras.status(cameraId).then(setCamStatus).catch(console.error)
+    const fetch = () => api.cameras.status(cameraId).then(setCamStatus).catch(console.error)
+    fetch()
+    const id = setInterval(fetch, 2000)
+    return () => clearInterval(id)
   }, [cameraId])
 
   const startCamera = useCallback(async () => {
@@ -106,7 +109,7 @@ export function ControlTab({ ws, cameraId }: Props) {
                   }
                 </div>
               </div>
-              <VideoPlayer stream={stream} rtcState={rtcState} />
+              <VideoPlayer stream={stream} rtcState={rtcState} rtcError={rtcError} />
             </div>
           </Card>
 
@@ -140,11 +143,18 @@ export function ControlTab({ ws, cameraId }: Props) {
                   <Square size={11} /> Stop Camera
                 </Button>
               ) : (
-                <Button size="sm" className="w-full"
-                  onClick={startCamera} loading={loopLoading}
-                  disabled={!cameraId || !camStatus?.source_name}>
-                  <Play size={11} /> Start Camera
-                </Button>
+                <>
+                  <Button size="sm" className="w-full"
+                    onClick={startCamera} loading={loopLoading}
+                    disabled={!cameraId || (!camStatus?.source_match && !camStatus?.rtsp_url)}>
+                    <Play size={11} /> Start Camera
+                  </Button>
+                  {camStatus && !camStatus.source_match && !camStatus.rtsp_url && (
+                    <p className="text-xs text-white/30 text-center">
+                      Configure a source in the Camera tab first
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </Card>

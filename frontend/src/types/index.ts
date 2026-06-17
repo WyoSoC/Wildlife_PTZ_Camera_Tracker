@@ -24,13 +24,15 @@ export interface NDISource {
 }
 
 export interface CameraStatus {
-  camera_id:   string
-  connected:   boolean
-  running:     boolean
-  source_name: string
-  mode:        'manual' | 'auto_track'
-  device:      string
-  device_name: string
+  camera_id:    string
+  connected:    boolean
+  running:      boolean
+  source_name:  string
+  source_match: string
+  rtsp_url:     string
+  mode:         'manual' | 'auto_track'
+  device:       string
+  device_name:  string
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -90,6 +92,8 @@ export interface ModelInfo {
   source:          string
   auto_download:   boolean
   detect_classes:  number[] | null
+  downloaded:      boolean
+  repo_id:         string | null
 }
 
 // ── Telemetry ─────────────────────────────────────────────────────────────────
