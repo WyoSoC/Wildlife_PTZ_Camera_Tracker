@@ -1,7 +1,7 @@
 // ── Server connection ──────────────────────────────────────────────────────────
 
 export interface ServerConfig {
-  url:    string   // "https://machine.tailXXXX.ts.net" or "http://192.168.x.x:8080"
+  url:    string   // "https://machine.tailXXXX.ts.net" or "http://192.168.x.x:9090"
   name:   string   // user-defined display label
   apiKey: string   // optional API key
 }

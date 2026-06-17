@@ -25,7 +25,7 @@ Browser (any device, any OS)
                                                               ││
 Edge server (on camera LAN)                                  ││
   Raspberry Pi 5 · Jetson Orin · Mac Mini · Linux PC         ││
-  ┌─ FastAPI (uvicorn :8080) ───────────────────────────────┐││
+  ┌─ FastAPI (uvicorn :9090) ───────────────────────────────┐││
   │   api/cameras.py   — source discovery, start/stop loop  │││
   │   api/ptz.py       — WebSocket bridge                   │╔╝│
   │   api/webrtc.py    — SDP signaling + NDIVideoTrack      ╔╝ │
@@ -143,8 +143,8 @@ python install.py --dry-run   # print commands only
 python install.py --list      # show detected platform and exit
 ```
 
-API is live at `http://localhost:8080`.
-Interactive docs: `http://localhost:8080/docs`.
+API is live at `http://localhost:9090`.
+Interactive docs: `http://localhost:9090/docs`.
 
 > **Important:** always start the server from the project root using `python run_server.py`.
 > Running `uvicorn backend.main:app` directly from inside the `backend/` directory
@@ -159,7 +159,7 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Vite proxies `/api` and `/ws` to `:8080`, so the backend must be running first.
+Vite proxies `/api` and `/ws` to `:9090`, so the backend must be running first.
 
 > **Security note:** run `npm audit fix` after install to pull in patched dependencies.
 > If it reports breaking-change upgrades (e.g. a major Vite bump), use `npm audit fix --force`
@@ -176,8 +176,8 @@ npm run build      # outputs to ../backend/static (see vite.config.ts)
 
 # 2. Run the server from the project root (serves the SPA automatically)
 cd ..
-python run_server.py                  # default: 0.0.0.0:8080
-python run_server.py --port 9090      # custom port
+python run_server.py                  # default: 0.0.0.0:9090
+python run_server.py --port 8080      # custom port
 ```
 
 > **Important:** always build the frontend **before** starting the server.
@@ -231,7 +231,7 @@ Then set `track.model_path = "yolov8n.engine"` in your profile or via `PUT /api/
 
 ```bash
 # Run once on the edge server after `tailscale up`:
-tailscale serve https / http://localhost:8080
+tailscale serve https / http://localhost:9090
 ```
 
 Your browser can then reach the app at `https://<machine-name>.tailXXXX.ts.net` from
@@ -243,7 +243,7 @@ WebRTC ICE negotiation works over Tailscale peer addresses automatically.
 ## REST API Reference
 
 All endpoints are prefixed `/api/`. Interactive docs are available at
-`http://localhost:8080/docs` when the server is running.
+`http://localhost:9090/docs` when the server is running.
 
 A default camera named `cam-1` is created automatically at startup.
 Use it immediately, or create additional cameras with `POST /api/cameras`.

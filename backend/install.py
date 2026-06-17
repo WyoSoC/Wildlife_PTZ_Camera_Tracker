@@ -139,7 +139,7 @@ def main() -> None:
 
     print('\nInstallation complete.')
     print('To start the server:')
-    print('  uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload\n')
+    print('  uvicorn backend.main:app --host 0.0.0.0 --port 9090 --reload\n')
 
 
 if __name__ == '__main__':

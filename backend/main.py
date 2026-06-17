@@ -107,7 +107,7 @@ if os.path.isdir(_static):
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
-def run(host: str = "0.0.0.0", port: int = 8080) -> None:
+def run(host: str = "0.0.0.0", port: int = 9090) -> None:
     webbrowser.open(f"http://localhost:{port}")
     uvicorn.run("backend.main:app", host=host, port=port, log_level="info")
 

@@ -6,7 +6,7 @@ Run from the project root (the directory that contains backend/ and frontend/):
 
     python run_server.py               # production  — serves pre-built frontend
     python run_server.py --dev         # development — enables uvicorn --reload
-    python run_server.py --port 9090   # custom port
+    python run_server.py --port 8080   # custom port
 """
 import argparse
 import os
@@ -24,7 +24,7 @@ import uvicorn  # noqa: E402 — must come after sys.path fix
 def main() -> None:
     parser = argparse.ArgumentParser(description="Eagle Tracker server")
     parser.add_argument("--host",  default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    parser.add_argument("--port",  default=8080, type=int, help="Bind port (default: 8080)")
+    parser.add_argument("--port",  default=9090, type=int, help="Bind port (default: 9090)")
     parser.add_argument("--dev",   action="store_true", help="Enable auto-reload (development)")
     args = parser.parse_args()
 
