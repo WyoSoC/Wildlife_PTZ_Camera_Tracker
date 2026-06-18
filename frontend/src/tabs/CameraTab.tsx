@@ -7,6 +7,82 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { StatusDot } from '../components/ui/Badge'
 
+// ── Shared model card renderer ────────────────────────────────────────────────
+
+interface ModelSectionProps {
+  models:      ModelInfo[]
+  activePath:  string
+  downloading: Set<string>
+  dlError:     Record<string, string>
+  onSwitch:    (name: string) => void
+  onDownload:  (name: string) => void
+  speciesLimit?: number
+}
+
+function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDownload, speciesLimit = 3 }: ModelSectionProps) {
+  if (!models.length) return <p className="text-xs text-white/30 text-center py-2">None</p>
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {models.map(m => {
+        const active  = activePath === m.path || activePath === m.name + '.pt'
+        const isDling = downloading.has(m.name)
+        const err     = dlError[m.name]
+
+        if (!m.downloaded) {
+          return (
+            <div key={m.name}
+              className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
+            >
+              <p className="font-medium text-white/60 truncate">{m.description}</p>
+              {m.species.length > 0 && (
+                <p className="text-white/30 truncate">
+                  {m.species.slice(0, speciesLimit).join(', ')}
+                  {m.species.length > speciesLimit && ` +${m.species.length - speciesLimit} more`}
+                </p>
+              )}
+              {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
+              {m.auto_download ? (
+                <button onClick={() => onDownload(m.name)} disabled={isDling}
+                  className="flex items-center gap-1 text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors"
+                >
+                  {isDling
+                    ? <><Loader size={11} className="animate-spin" /> Downloading…</>
+                    : <><Download size={11} /> Download</>
+                  }
+                </button>
+              ) : (
+                <span className="text-white/25 italic">Coming soon</span>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <button key={m.name} onClick={() => onSwitch(m.name)}
+            className={[
+              'text-left p-2.5 rounded-lg border text-xs transition-colors',
+              active
+                ? 'bg-green-900/30 border-green-700/60'
+                : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
+            ].join(' ')}
+          >
+            <div className="flex items-start justify-between gap-1">
+              <p className="font-medium text-white truncate">{m.description}</p>
+              {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+            </div>
+            {m.species.length > 0 && (
+              <p className="text-white/35 mt-0.5 truncate">
+                {m.species.slice(0, speciesLimit).join(', ')}
+                {m.species.length > speciesLimit && ` +${m.species.length - speciesLimit} more`}
+              </p>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function CameraTab() {
   const { cameras, activeCameraId, setActiveCameraId, refreshCameras } = useServer()
   const cameraId = activeCameraId
@@ -264,224 +340,77 @@ export function CameraTab() {
           {config && cameraId ? (
             <div className="space-y-3">
 
-              {/* Wildlife model */}
-              <Card title="Wildlife Model">
-                <div className="space-y-4">
-
-                  {/* UWyo wildlife models */}
-                  {(() => {
-                    const wildlife = models.filter(m => m.source === 'uwyo')
-                    if (!wildlife.length) return null
-                    return (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
-                          UWyo Wildlife Models
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {wildlife.map(m => {
-                            const active  = config.track.model_path === m.path ||
-                                            config.track.model_path === m.name + '.pt'
-                            const isDling = downloading.has(m.name)
-                            const err     = dlError[m.name]
-
-                            if (!m.downloaded) {
-                              return (
-                                <div key={m.name}
-                                  className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
-                                >
-                                  <p className="font-medium text-white/60 truncate">{m.description}</p>
-                                  {m.species.length > 0 && (
-                                    <p className="text-white/30 truncate">
-                                      {m.species.slice(0, 3).join(', ')}
-                                      {m.species.length > 3 && ` +${m.species.length - 3}`}
-                                    </p>
-                                  )}
-                                  {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
-                                  {m.auto_download ? (
-                                    <button
-                                      onClick={() => downloadModel(m.name)}
-                                      disabled={isDling}
-                                      className="flex items-center gap-1 text-blue-400 hover:text-blue-300
-                                                 disabled:opacity-50 transition-colors"
-                                    >
-                                      {isDling
-                                        ? <><Loader size={11} className="animate-spin" /> Downloading…</>
-                                        : <><Download size={11} /> Download</>
-                                      }
-                                    </button>
-                                  ) : (
-                                    <span className="text-white/25 italic">Coming soon</span>
-                                  )}
-                                </div>
-                              )
-                            }
-
-                            return (
-                              <button
-                                key={m.name}
-                                onClick={() => switchModel(m.name)}
-                                className={[
-                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
-                                  active
-                                    ? 'bg-green-900/30 border-green-700/60'
-                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
-                                ].join(' ')}
-                              >
-                                <div className="flex items-start justify-between gap-1">
-                                  <p className="font-medium text-white truncate">{m.description}</p>
-                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
-                                </div>
-                                {m.species.length > 0 && (
-                                  <p className="text-white/35 mt-0.5 truncate">
-                                    {m.species.slice(0, 3).join(', ')}
-                                    {m.species.length > 3 && ` +${m.species.length - 3}`}
-                                  </p>
-                                )}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
-
-                  {/* MegaDetector */}
-                  {(() => {
-                    const megadetector = models.filter(m => m.source === 'megadetector')
-                    if (!megadetector.length) return null
-                    return (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
-                          MegaDetector
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {megadetector.map(m => {
-                            const active  = config.track.model_path === m.path ||
-                                            config.track.model_path === m.name + '.pt'
-                            const isDling = downloading.has(m.name)
-                            const err     = dlError[m.name]
-
-                            if (!m.downloaded) {
-                              return (
-                                <div key={m.name}
-                                  className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
-                                >
-                                  <p className="font-medium text-white/60 truncate">{m.description}</p>
-                                  <p className="text-white/30 truncate">{m.species.join(', ')}</p>
-                                  {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
-                                  <button
-                                    onClick={() => downloadModel(m.name)}
-                                    disabled={isDling}
-                                    className="flex items-center gap-1 text-blue-400 hover:text-blue-300
-                                               disabled:opacity-50 transition-colors"
-                                  >
-                                    {isDling
-                                      ? <><Loader size={11} className="animate-spin" /> Downloading…</>
-                                      : <><Download size={11} /> Download (~700 MB)</>
-                                    }
-                                  </button>
-                                </div>
-                              )
-                            }
-
-                            return (
-                              <button key={m.name} onClick={() => switchModel(m.name)}
-                                className={[
-                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
-                                  active
-                                    ? 'bg-green-900/30 border-green-700/60'
-                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
-                                ].join(' ')}
-                              >
-                                <div className="flex items-start justify-between gap-1">
-                                  <p className="font-medium text-white truncate">{m.description}</p>
-                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
-                                </div>
-                                <p className="text-white/35 mt-0.5 truncate">{m.species.join(', ')}</p>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
-
-                  {/* Other custom .pt files */}
-                  {(() => {
-                    const other = models.filter(m => m.source === 'custom' && m.downloaded)
-                    if (!other.length) return null
-                    return (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
-                          Other Custom
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {other.map(m => {
-                            const active = config.track.model_path === m.path ||
-                                           config.track.model_path === m.name + '.pt'
-                            return (
-                              <button key={m.name} onClick={() => switchModel(m.name)}
-                                className={[
-                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
-                                  active
-                                    ? 'bg-green-900/30 border-green-700/60'
-                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
-                                ].join(' ')}
-                              >
-                                <div className="flex items-start justify-between gap-1">
-                                  <p className="font-medium text-white truncate">{m.description}</p>
-                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
-
-                  {/* COCO fallback models */}
-                  {(() => {
-                    const coco = models.filter(m => m.source === 'ultralytics')
-                    if (!coco.length) return null
-                    return (
-                      <details className="group">
-                        <summary className="cursor-pointer text-[10px] font-semibold text-white/25
-                                            uppercase tracking-wider select-none hover:text-white/40
-                                            transition-colors list-none flex items-center gap-1">
-                          <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
-                          COCO Fallback Models
-                        </summary>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          {coco.map(m => {
-                            const active = config.track.model_path === m.path ||
-                                           config.track.model_path === m.name + '.pt'
-                            return (
-                              <button key={m.name} onClick={() => switchModel(m.name)}
-                                className={[
-                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
-                                  active
-                                    ? 'bg-green-900/30 border-green-700/60'
-                                    : 'bg-surface-raised border-surface-border hover:border-white/10',
-                                ].join(' ')}
-                              >
-                                <div className="flex items-start justify-between gap-1">
-                                  <p className="font-medium text-white/50 truncate">{m.description}</p>
-                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
-                                </div>
-                                <p className="text-white/20 mt-0.5 uppercase text-[10px] tracking-wide">
-                                  {m.name}
-                                </p>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </details>
-                    )
-                  })()}
-
-                </div>
+              {/* General multi-species models */}
+              <Card title="General Models">
+                <ModelSection
+                  models={models.filter(m => m.source === 'general' || m.source === 'megadetector')}
+                  activePath={config.track.model_path}
+                  downloading={downloading}
+                  dlError={dlError}
+                  onSwitch={switchModel}
+                  onDownload={downloadModel}
+                  speciesLimit={4}
+                />
               </Card>
+
+              {/* Specialized single-species models */}
+              <Card title="Specialized Models">
+                <ModelSection
+                  models={models.filter(m => m.source === 'specialized')}
+                  activePath={config.track.model_path}
+                  downloading={downloading}
+                  dlError={dlError}
+                  onSwitch={switchModel}
+                  onDownload={downloadModel}
+                  speciesLimit={1}
+                />
+              </Card>
+
+              {/* Custom .pt files */}
+              {models.some(m => m.source === 'custom') && (
+                <Card title="Custom Models">
+                  <ModelSection
+                    models={models.filter(m => m.source === 'custom')}
+                    activePath={config.track.model_path}
+                    downloading={downloading}
+                    dlError={dlError}
+                    onSwitch={switchModel}
+                    onDownload={downloadModel}
+                  />
+                </Card>
+              )}
+
+              {/* COCO fallback models */}
+              <details className="group">
+                <summary className="cursor-pointer text-[10px] font-semibold text-white/25
+                                    uppercase tracking-wider select-none hover:text-white/40
+                                    transition-colors list-none flex items-center gap-1 px-1 py-0.5">
+                  <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                  COCO Baseline Models
+                </summary>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {models.filter(m => m.source === 'ultralytics').map(m => {
+                    const active = config.track.model_path === m.path ||
+                                   config.track.model_path === m.name + '.pt'
+                    return (
+                      <button key={m.name} onClick={() => switchModel(m.name)}
+                        className={[
+                          'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                          active
+                            ? 'bg-green-900/30 border-green-700/60'
+                            : 'bg-surface-raised border-surface-border hover:border-white/10',
+                        ].join(' ')}
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="font-medium text-white/50 truncate">{m.description}</p>
+                          {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+                        </div>
+                        <p className="text-white/20 mt-0.5 uppercase text-[10px] tracking-wide">{m.name}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </details>
 
             </div>
           ) : (

@@ -51,7 +51,9 @@ async def download_model(name: str):
     if not info.repo_id and not info.download_url:
         raise HTTPException(400, detail=f"Model '{name}' has no download source configured")
 
-    dest = Path(models_dir()) / f"{name}.pt"
+    target_dir = Path(models_dir()) / info.subdir if info.subdir else Path(models_dir())
+    target_dir.mkdir(parents=True, exist_ok=True)
+    dest = target_dir / f"{name}.pt"
     if dest.exists():
         return {"status": "already_downloaded", "path": str(dest)}
 
@@ -91,7 +93,7 @@ async def download_model(name: str):
             lambda: hf_hub_download(
                 repo_id=info.repo_id,
                 filename=info.hf_filename,
-                local_dir=str(models_dir()),
+                local_dir=str(target_dir),
             ),
         )
         cached = Path(cached_str)
