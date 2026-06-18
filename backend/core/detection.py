@@ -49,10 +49,20 @@ class BBox:
 
     def draw(self, img: np.ndarray, color: tuple = (0, 255, 0), thickness: int = 2) -> None:
         cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), color, thickness)
-        label = f"ID:{self.track_id}" if self.track_id is not None else f"{self.conf:.2f}"
+
+        parts: list[str] = []
+        if self.cls_name:
+            parts.append(self.cls_name.replace('_', ' '))
+        if self.conf > 0:
+            parts.append(f"{self.conf * 100:.0f}%")
+        if not parts and self.track_id is not None:
+            parts.append(f"ID {self.track_id}")
+        label = "  ".join(parts) if parts else "?"
+
+        font_scale = 0.40 if thickness == 1 else 0.50
         cv2.putText(
-            img, label, (self.x1, max(0, self.y1 - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.45 if thickness == 1 else 0.55, color, thickness, cv2.LINE_AA,
+            img, label, (self.x1, max(12, self.y1 - 5)),
+            cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA,
         )
 
 
