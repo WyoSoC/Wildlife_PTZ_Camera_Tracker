@@ -111,6 +111,11 @@ export const api = {
 
     loadProfile: (cameraId: string, name: string) =>
       post<{ status: string }>(`/api/cameras/${cameraId}/profiles/${encodeURIComponent(name)}/load`),
+
+    goHome: (cameraId: string) =>
+      post<{ status: string; pan: number; tilt: number; zoom: number }>(
+        `/api/cameras/${cameraId}/home/go`,
+      ),
   },
 
   models: {

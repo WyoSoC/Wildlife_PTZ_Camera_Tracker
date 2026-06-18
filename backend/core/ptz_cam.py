@@ -35,6 +35,19 @@ class NDIPTZCamera:
         self.pan_tilt_speed(0.0, 0.0)
         self.zoom_speed(0.0)
 
+    def go_to(self, pan: float, tilt: float, zoom: float = 0.5) -> None:
+        """
+        Absolute PTZ position command.
+        pan/tilt: -1.0 (left/down) to 1.0 (right/up).
+        zoom:      0.0 (wide-angle) to 1.0 (full tele).
+        Sends both ntk_ and ndi_ namespaces for maximum camera compatibility.
+        """
+        pan  = _clamp(pan)
+        tilt = _clamp(tilt)
+        zoom = _clamp(zoom, 0.0, 1.0)
+        self._send(f'<ntk_ptz_pan_tilt_zoom pan="{pan:.3f}" tilt="{tilt:.3f}" zoom="{zoom:.3f}"/>')
+        self._send(f'<ndi_ptz_pan_tilt_zoom pan="{pan:.3f}" tilt="{tilt:.3f}" zoom="{zoom:.3f}"/>')
+
     def autofocus(self) -> None:
         self._send('<ntk_ptz_focus_auto autofocus="on"/>')
 
@@ -58,3 +71,4 @@ class NDIPTZCamera:
 
 def _clamp(v: float, lo: float = -1.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(v)))
+

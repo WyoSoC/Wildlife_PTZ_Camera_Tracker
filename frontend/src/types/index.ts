@@ -1,9 +1,9 @@
 // ── Server connection ──────────────────────────────────────────────────────────
 
 export interface ServerConfig {
-  url:    string   // "https://machine.tailXXXX.ts.net" or "http://192.168.x.x:9090"
-  name:   string   // user-defined display label
-  apiKey: string   // optional API key
+  url:    string
+  name:   string
+  apiKey: string
 }
 
 // ── Camera ────────────────────────────────────────────────────────────────────
@@ -39,7 +39,6 @@ export interface CameraStatus {
 
 export interface PanConfig {
   dead_zone_px: number
-  thresh_px:    number
   kp:           number
   max_speed:    number
   min_speed:    number
@@ -54,18 +53,45 @@ export interface ZoomConfig {
   ema_alpha:     number
 }
 
+export interface HomeConfig {
+  pan:    number
+  tilt:   number
+  zoom:   number
+  is_set: boolean
+}
+
+export interface AreaConfig {
+  enabled:   boolean
+  pan_min:   number
+  pan_max:   number
+  tilt_min:  number
+  tilt_max:  number
+  scan_zoom: number
+}
+
+export interface ScanConfig {
+  enabled:    boolean
+  rows:       number
+  cols:       number
+  travel_sec: number
+  dwell_sec:  number
+}
+
 export interface CameraConfig {
-  camera: { source_match: string; reolink_rtsp_url: string }
-  pan:    PanConfig
-  zoom:   ZoomConfig
-  track:  { detect_classes: number | null; model_path: string }
-  record: { duration_sec: number; fps: number; record_res: [number, number] }
-  speed:  { hfov_deg: number }
+  camera:  { source_match: string; reolink_rtsp_url: string }
+  pan:     PanConfig
+  zoom:    ZoomConfig
+  track:   { detect_classes: number | null; model_path: string; lock_confidence: number; tracker_max_age: number }
+  command: { no_track_stop_sec: number; lock_off_sec: number }
+  record:  { duration_sec: number; fps: number; record_res: [number, number] }
+  speed:   { hfov_deg: number }
+  home:    HomeConfig
+  area:    AreaConfig
+  scan:    ScanConfig
 }
 
 export interface ConfigUpdate {
   pan_dead_zone_px?:    number
-  pan_thresh_px?:       number
   pan_kp?:              number
   pan_max_speed?:       number
   pan_min_speed?:       number
@@ -76,11 +102,30 @@ export interface ConfigUpdate {
   zoom_invert?:         boolean
   zoom_ema_alpha?:      number
   detect_classes?:      number | null
+  lock_confidence?:     number
+  tracker_max_age?:     number
+  no_track_stop_sec?:   number
+  lock_off_sec?:        number
   record_duration_sec?: number
   record_fps?:          number
   record_res?:          [number, number]
   hfov_deg?:            number
   model_path?:          string
+  home_pan?:            number
+  home_tilt?:           number
+  home_zoom?:           number
+  home_is_set?:         boolean
+  area_enabled?:        boolean
+  area_pan_min?:        number
+  area_pan_max?:        number
+  area_tilt_min?:       number
+  area_tilt_max?:       number
+  area_scan_zoom?:      number
+  scan_enabled?:        boolean
+  scan_rows?:           number
+  scan_cols?:           number
+  scan_travel_sec?:     number
+  scan_dwell_sec?:      number
 }
 
 // ── Models ────────────────────────────────────────────────────────────────────
@@ -112,6 +157,7 @@ export interface Telemetry {
   speed_px:    number
   speed_deg:   number
   wfrac_ema:   number
+  scan_phase:  'idle' | 'scanning' | 'locked'
   rec_active:  boolean
   rec_elapsed: number
   rec_total:   number

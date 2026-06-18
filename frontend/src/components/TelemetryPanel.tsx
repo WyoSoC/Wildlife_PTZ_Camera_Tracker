@@ -51,6 +51,16 @@ export function TelemetryPanel({ telemetry }: Props) {
           value={telemetry.mode === 'auto_track' ? 'Auto-track' : 'Manual'}
           highlight={telemetry.mode === 'auto_track'}
         />
+        {telemetry.mode === 'auto_track' && (
+          <Row
+            label="State"
+            value={
+              telemetry.scan_phase === 'locked'   ? 'Locked' :
+              telemetry.scan_phase === 'scanning' ? 'Scanning' : 'Idle'
+            }
+            highlight={telemetry.scan_phase === 'locked'}
+          />
+        )}
         <Row label="Camera"   value={telemetry.source_name || '—'} />
       </div>
     </div>

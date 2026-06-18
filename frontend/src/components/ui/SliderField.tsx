@@ -1,27 +1,26 @@
 interface SliderFieldProps {
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  unit?: string
+  label:    string
+  value:    number
+  min:      number
+  max:      number
+  step?:    number
+  unit?:    string
   decimals?: number
+  tooltip?: string
   onChange: (v: number) => void
 }
 
 export function SliderField({
-  label,
-  value,
-  min,
-  max,
-  step = 0.01,
-  unit = '',
-  decimals = 2,
-  onChange,
+  label, value, min, max, step = 0.01, unit = '', decimals = 2, tooltip, onChange,
 }: SliderFieldProps) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-28 shrink-0 text-xs text-white/50">{label}</span>
+      <span
+        className="w-28 shrink-0 text-xs text-white/50 cursor-default"
+        title={tooltip}
+      >
+        {label}{tooltip && <span className="ml-1 text-white/20">ⓘ</span>}
+      </span>
       <input
         type="range"
         min={min}
@@ -39,8 +38,8 @@ export function SliderField({
 }
 
 interface ToggleFieldProps {
-  label: string
-  value: boolean
+  label:    string
+  value:    boolean
   onChange: (v: boolean) => void
 }
 

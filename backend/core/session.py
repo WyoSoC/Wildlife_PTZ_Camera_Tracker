@@ -21,6 +21,7 @@ class TrackingState:
     speed_deg:   float          = 0.0
     wfrac_ema:   float          = 0.0
     fps:         float          = 0.0
+    scan_phase:  str            = 'idle'  # 'idle' | 'scanning' | 'locked'
 
 
 @dataclass
@@ -123,6 +124,7 @@ class Session:
             "speed_px":     round(self.tracking.speed_px, 1),
             "speed_deg":    round(self.tracking.speed_deg, 2),
             "wfrac_ema":    round(self.tracking.wfrac_ema, 3),
+            "scan_phase":   self.tracking.scan_phase,
             "rec_active":   self.recording.is_active,
             "rec_elapsed":  round(self.recording.elapsed_sec, 1),
             "rec_total":    self.recording.total_sec,
