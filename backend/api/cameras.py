@@ -223,6 +223,14 @@ async def switch_model(camera_id: str, req: ModelSwitchRequest):
         available = [m.name for m in list_models()]
         raise HTTPException(404, f"Model '{req.model_name}' not found. Available: {available}")
 
+    if not info.downloaded:
+        raise HTTPException(
+            400,
+            f"Model '{req.model_name}' is not downloaded. "
+            f"Place the .pt file in the models/ directory first."
+            + (f" (HuggingFace: {info.repo_id})" if info.repo_id else ""),
+        )
+
     was_running = entry.is_running()
     if was_running:
         entry.stop()

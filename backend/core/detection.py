@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -68,7 +69,13 @@ class Detector:
         self._device = select_device(dev_cfg.device)
         self._half   = dev_cfg.half and half_supported(self._device)
 
-        self._model = YOLO(track_cfg.model_path)
+        model_path = track_cfg.model_path
+        if not os.path.isfile(model_path) and "/" not in model_path and not model_path.startswith("yolo"):
+            raise FileNotFoundError(
+                f"Model file not found: '{model_path}'. "
+                "Download it and place it in the models/ directory, or switch to an available model."
+            )
+        self._model = YOLO(model_path)
         self._model.to(self._device)
 
         info = device_info(self._device)
