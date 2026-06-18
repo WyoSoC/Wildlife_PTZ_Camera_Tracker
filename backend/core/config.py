@@ -29,7 +29,7 @@ class PanConfig:
     kp:           float = 0.9   # proportional gain (higher = more aggressive)
     max_speed:    float = 0.8   # max PTZ pan speed (0–1)
     min_speed:    float = 0.20  # floor to overcome motor stiction
-    invert:       bool  = True  # flip pan direction if camera reports it inverted
+    invert:       bool  = False  # flip pan direction — set True in camera-specific profiles
 
 
 @dataclass
@@ -37,7 +37,7 @@ class ZoomConfig:
     zoom_in_frac:  float = 0.18  # zoom in when bbox < this fraction of frame width
     zoom_out_frac: float = 0.40  # zoom out when bbox > this fraction of frame width
     speed:         float = 0.6   # zoom motor speed (0–1)
-    invert:        bool  = False
+    invert:        bool  = False  # flip zoom direction — set True in camera-specific profiles
     ema_alpha:     float = 0.45  # smoothing (0=no update, 1=no smoothing)
 
 
@@ -132,6 +132,7 @@ BIRDDOG = AppConfig(
     camera=CameraConfig(source_match="birddog"),
     video=VideoConfig(process_res=(480, 288)),
     track=TrackConfig(model_path="yolo26s.pt"),
+    pan=PanConfig(invert=True),   # BirdDog NDI pan axis is inverted relative to PTZ commands
     record=RecordConfig(duration_sec=30, fps=30, record_res=(1920, 1080)),
 )
 

@@ -162,8 +162,6 @@ function TrackingTuning({ config, patchConfig, SaveDot }: TuningProps) {
               onChange={v => patchConfig({ pan_min_speed: v })}
               tooltip="Minimum nonzero speed floor to overcome motor stiction."
             />
-            <ToggleField label="Invert pan" value={config.pan.invert}
-              onChange={v => patchConfig({ pan_invert: v })} />
           </div>
         </details>
 
@@ -196,8 +194,6 @@ function TrackingTuning({ config, patchConfig, SaveDot }: TuningProps) {
               onChange={v => patchConfig({ zoom_ema_alpha: v })}
               tooltip="EMA smoothing on bbox size. Lower = less zoom hunting but slower response."
             />
-            <ToggleField label="Invert zoom" value={config.zoom.invert}
-              onChange={v => patchConfig({ zoom_invert: v })} />
           </div>
         </details>
 
