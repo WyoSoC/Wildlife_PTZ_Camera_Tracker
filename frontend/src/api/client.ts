@@ -135,6 +135,18 @@ export const api = {
     downloadUrl: (filename: string) =>
       `${_serverUrl}/api/recordings/${encodeURIComponent(filename)}`,
 
+    softDelete: (filename: string) =>
+      del<{ status: string }>(`/api/recordings/${encodeURIComponent(filename)}`),
+
+    listBin: () =>
+      get<{ recordings: Recording[] }>('/api/recordings/bin'),
+
+    restore: (filename: string) =>
+      post<{ status: string }>(`/api/recordings/bin/${encodeURIComponent(filename)}/restore`, {}),
+
+    emptyBin: () =>
+      del<{ status: string; deleted: number }>('/api/recordings/bin'),
+
     listLogs: () =>
       get<{ logs: LogFile[] }>('/api/logs'),
 
