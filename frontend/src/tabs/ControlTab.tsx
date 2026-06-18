@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Play, Square, Crosshair, Radio, CheckCircle2, RefreshCw,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, Focus, Home, ScanLine, MapPin,
+  ZoomIn, ZoomOut, Focus, Home, ScanLine, MapPin, Bookmark,
 } from 'lucide-react'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { useGamepad } from '../hooks/useGamepad'
@@ -13,7 +13,7 @@ import { Card } from '../components/ui/Card'
 import { SliderField, ToggleField } from '../components/ui/SliderField'
 import { Badge, StatusDot } from '../components/ui/Badge'
 import { api } from '../api/client'
-import type { CameraConfig, CameraStatus, ConfigUpdate, WebSocketHook } from '../types'
+import type { CameraConfig, CameraStatus, ConfigUpdate, UserProfile, WebSocketHook } from '../types'
 
 const GAMEPAD_SEND_HZ     = 20
 const GAMEPAD_INTERVAL_MS = 1000 / GAMEPAD_SEND_HZ
@@ -367,6 +367,111 @@ function BehaviourPanel({ config, patchConfig, SaveDot, cameraId }: BehaviourPro
             )}
           </div>
         </details>
+      </div>
+    </Card>
+  )
+}
+
+// ── Saved profiles ─────────────────────────────────────────────────────────────
+
+function ProfilesCard({ cameraId, onLoaded }: { cameraId: string | null; onLoaded: () => void }) {
+  const [profiles,  setProfiles] = useState<UserProfile[]>([])
+  const [newName,   setNewName]  = useState('')
+  const [saving,    setSaving]   = useState(false)
+  const [flash,     setFlash]    = useState<string | null>(null)
+
+  const refresh = useCallback(() => {
+    api.profiles.list().then(r => setProfiles(r.profiles)).catch(console.error)
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const showFlash = (msg: string) => {
+    setFlash(msg)
+    setTimeout(() => setFlash(null), 2000)
+  }
+
+  const handleSave = async () => {
+    if (!cameraId || !newName.trim()) return
+    setSaving(true)
+    try {
+      await api.profiles.save(newName.trim(), cameraId)
+      setNewName('')
+      refresh()
+      showFlash('Saved')
+    } catch (e) { console.error(e) }
+    finally   { setSaving(false) }
+  }
+
+  const handleLoad = async (name: string) => {
+    if (!cameraId) return
+    try {
+      await api.profiles.load(name, cameraId)
+      onLoaded()
+      showFlash(`Loaded`)
+    } catch (e) { console.error(e) }
+  }
+
+  const handleDelete = async (name: string) => {
+    try {
+      await api.profiles.remove(name)
+      refresh()
+    } catch (e) { console.error(e) }
+  }
+
+  return (
+    <Card>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+            <Bookmark size={12} /> Profiles
+          </span>
+          {flash && <span className="text-xs text-green-400">{flash}</span>}
+        </div>
+
+        <div className="flex gap-1">
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            placeholder="Profile name…"
+            className="flex-1 min-w-0 text-xs bg-surface-base border border-surface-border
+                       rounded px-2 py-1 text-white placeholder:text-white/20
+                       focus:outline-none focus:border-blue-500"
+          />
+          <Button size="sm" onClick={handleSave}
+            disabled={!cameraId || !newName.trim()} loading={saving}>
+            Save
+          </Button>
+        </div>
+
+        {profiles.length === 0 ? (
+          <p className="text-[11px] text-white/20 text-center py-1">No saved profiles</p>
+        ) : (
+          <div className="space-y-1 max-h-40 overflow-y-auto pr-0.5">
+            {profiles.map(p => (
+              <div key={p.name} className="flex items-center gap-1 text-xs">
+                <span className="flex-1 min-w-0 truncate text-white/70" title={p.name}>
+                  {p.name}
+                </span>
+                <button
+                  onClick={() => handleLoad(p.name)}
+                  className="shrink-0 px-1.5 py-0.5 rounded text-[10px]
+                             bg-blue-700/40 hover:bg-blue-600/60 text-blue-300
+                             border border-blue-800/60 transition-colors">
+                  Load
+                </button>
+                <button
+                  onClick={() => handleDelete(p.name)}
+                  className="shrink-0 px-1.5 py-0.5 rounded text-[10px]
+                             bg-surface-raised hover:bg-red-900/40 text-white/30
+                             hover:text-red-400 border border-surface-border transition-colors">
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   )
@@ -901,6 +1006,13 @@ export function ControlTab({ ws, cameraId }: Props) {
               </div>
             )}
           </Card>
+
+          <ProfilesCard
+            cameraId={cameraId}
+            onLoaded={() => {
+              if (cameraId) api.cameras.getConfig(cameraId).then(setConfig).catch(console.error)
+            }}
+          />
 
         </div>
       </div>

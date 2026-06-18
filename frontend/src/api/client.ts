@@ -1,6 +1,7 @@
 import type {
   CameraConfig, CameraListItem, CameraStatus, ConfigUpdate,
   ModelInfo, NDISource, Recording, LogFile, SystemMetrics, SystemInfo, NtpStatus,
+  UserProfile,
 } from '../types'
 
 // ── Server configuration ───────────────────────────────────────────────────────
@@ -176,5 +177,21 @@ export const api = {
 
     ntpSync: () =>
       post<NtpStatus>('/api/system/ntp-sync'),
+  },
+
+  profiles: {
+    list: () =>
+      get<{ profiles: UserProfile[] }>('/api/profiles'),
+
+    save: (name: string, camera_id: string, description?: string) =>
+      post<{ status: string; name: string }>('/api/profiles', { name, camera_id, description }),
+
+    load: (name: string, camera_id: string) =>
+      post<{ status: string; name: string }>(
+        `/api/profiles/${encodeURIComponent(name)}/load`, { camera_id },
+      ),
+
+    remove: (name: string) =>
+      del<{ status: string; name: string }>(`/api/profiles/${encodeURIComponent(name)}`),
   },
 }

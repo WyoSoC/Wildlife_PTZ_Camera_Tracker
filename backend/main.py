@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api import cameras, ptz, webrtc, recordings
 from .api import system as system_api
 from .api import models as models_api
+from .api import profiles as profiles_api
 from .api.webrtc import close_all
 from .core.camera_manager import get_manager
 from .core.device import select_device, device_info
@@ -92,6 +93,7 @@ app.include_router(webrtc.router)
 app.include_router(recordings.router)
 app.include_router(system_api.router)
 app.include_router(models_api.router)
+app.include_router(profiles_api.router)
 
 # ── Serve the React SPA (production build) ────────────────────────────────────
 _static = os.path.join(os.path.dirname(__file__), "static")

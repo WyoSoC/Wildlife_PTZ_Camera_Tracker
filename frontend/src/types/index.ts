@@ -215,6 +215,14 @@ export interface NtpStatus {
   synced:     boolean
 }
 
+// ── User-saved tracking profiles ─────────────────────────────────────────────
+
+export interface UserProfile {
+  name:        string
+  saved_at:    string | null
+  description: string
+}
+
 // ── WebSocket hook ────────────────────────────────────────────────────────────
 
 export interface WebSocketHook {
