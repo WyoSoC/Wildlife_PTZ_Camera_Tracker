@@ -5,10 +5,8 @@ Custom models: place .pt / .onnx / .engine files in the  models/  directory at
 the project root.  Well-known filenames receive enriched metadata; any other
 .pt file is listed generically.
 
-Pre-trained custom models are hosted on HuggingFace under the UWyo organisation:
-  https://huggingface.co/UWyo
-Download them via  POST /api/models/{name}/download  or by running:
-  python /path/to/Wildlife-YOLO-Models/scripts/download_models.py --model golden_eagle
+UWyo wildlife models will be published to HuggingFace when training is complete.
+Until then auto_download=False; place .pt files manually in the models/ directory.
 """
 from __future__ import annotations
 import os
@@ -61,7 +59,7 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
             "prairie dog", "badger", "bobcat",
         ],
         source="uwyo",
-        auto_download=True,
+        auto_download=False,
         repo_id=f"{HF_ORG}/wildlife-north-american",
         hf_filename="best.pt",
     ),
@@ -72,7 +70,7 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
         detect_classes=None,
         species=["golden eagle"],
         source="uwyo",
-        auto_download=True,
+        auto_download=False,
         repo_id=f"{HF_ORG}/wildlife-golden-eagle",
         hf_filename="best.pt",
     ),
@@ -83,7 +81,7 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
         detect_classes=None,
         species=["pronghorn"],
         source="uwyo",
-        auto_download=True,
+        auto_download=False,
         repo_id=f"{HF_ORG}/wildlife-pronghorn",
         hf_filename="best.pt",
     ),
@@ -94,7 +92,7 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
         detect_classes=None,
         species=["bighorn sheep"],
         source="uwyo",
-        auto_download=True,
+        auto_download=False,
         repo_id=f"{HF_ORG}/wildlife-bighorn-sheep",
         hf_filename="best.pt",
     ),
@@ -105,7 +103,7 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
         detect_classes=None,
         species=["bison"],
         source="uwyo",
-        auto_download=True,
+        auto_download=False,
         repo_id=f"{HF_ORG}/wildlife-bison",
         hf_filename="best.pt",
     ),

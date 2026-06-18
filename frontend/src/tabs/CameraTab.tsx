@@ -297,17 +297,21 @@ export function CameraTab() {
                                     </p>
                                   )}
                                   {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
-                                  <button
-                                    onClick={() => downloadModel(m.name)}
-                                    disabled={isDling}
-                                    className="flex items-center gap-1 text-blue-400 hover:text-blue-300
-                                               disabled:opacity-50 transition-colors"
-                                  >
-                                    {isDling
-                                      ? <><Loader size={11} className="animate-spin" /> Downloading…</>
-                                      : <><Download size={11} /> Download</>
-                                    }
-                                  </button>
+                                  {m.auto_download ? (
+                                    <button
+                                      onClick={() => downloadModel(m.name)}
+                                      disabled={isDling}
+                                      className="flex items-center gap-1 text-blue-400 hover:text-blue-300
+                                                 disabled:opacity-50 transition-colors"
+                                    >
+                                      {isDling
+                                        ? <><Loader size={11} className="animate-spin" /> Downloading…</>
+                                        : <><Download size={11} /> Download</>
+                                      }
+                                    </button>
+                                  ) : (
+                                    <span className="text-white/25 italic">Coming soon</span>
+                                  )}
                                 </div>
                               )
                             }
