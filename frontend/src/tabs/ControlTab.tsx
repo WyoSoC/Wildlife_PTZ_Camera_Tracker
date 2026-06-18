@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Play, Square, Crosshair, Radio, CheckCircle2,
+  Play, Square, Crosshair, Radio, CheckCircle2, RefreshCw,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ZoomIn, ZoomOut, Focus,
 } from 'lucide-react'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { useGamepad } from '../hooks/useGamepad'
 import { VideoPlayer } from '../components/VideoPlayer'
-import { JoystickStatus } from '../components/JoystickStatus'
 import { TelemetryPanel } from '../components/TelemetryPanel'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -33,6 +32,23 @@ const DURATION_OPTIONS = [
   { label: '30 minutes',  value: 1800 },
   { label: '⚠ Unlimited', value: 0 },
 ]
+
+// ── Axis bar (joystick visualisation) ─────────────────────────────────────────
+
+function AxisBar({ label, value }: { label: string; value: number }) {
+  const pct = ((value + 1) / 2) * 100
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-8 shrink-0 text-white/40">{label}</span>
+      <div className="relative flex-1 h-2 bg-surface-border rounded-full overflow-hidden">
+        <span className="absolute left-1/2 -translate-x-px w-px h-full bg-white/20" />
+        <div className="absolute top-0 h-full bg-blue-500 rounded-full transition-all duration-75"
+             style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-10 text-right font-mono text-white/60">{value.toFixed(2)}</span>
+    </div>
+  )
+}
 
 // ── PTZ press-hold button ──────────────────────────────────────────────────────
 
@@ -86,6 +102,7 @@ export function ControlTab({ ws, cameraId }: Props) {
   const [saveStatus,  setSaveStatus]  = useState<'idle' | 'saving' | 'saved'>('idle')
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
+  // ── Camera status polling ──────────────────────────────────────────────────
   useEffect(() => {
     if (!cameraId) return
     const fetch = () => api.cameras.status(cameraId).then(setCamStatus).catch(console.error)
@@ -99,9 +116,9 @@ export function ControlTab({ ws, cameraId }: Props) {
     api.cameras.getConfig(cameraId).then(setConfig).catch(console.error)
   }, [cameraId])
 
-  // Auto-connect video when camera starts running
-  const rtcStateRef    = useRef(rtcState)
-  const wasRunningRef  = useRef(false)
+  // ── Auto-connect video when camera starts running ─────────────────────────
+  const rtcStateRef   = useRef(rtcState)
+  const wasRunningRef = useRef(false)
   useEffect(() => { rtcStateRef.current = rtcState }, [rtcState])
   useEffect(() => {
     const running = camStatus?.running ?? false
@@ -112,26 +129,80 @@ export function ControlTab({ ws, cameraId }: Props) {
     wasRunningRef.current = running
   }, [camStatus?.running, startWebRTC])
 
+  // ── Gamepad / joystick ────────────────────────────────────────────────────
+  interface PadInfo { index: number; id: string }
+  const [detectedPads, setDetectedPads] = useState<PadInfo[]>([])
+  const [activePadIdx, setActivePadIdx] = useState<number | null>(null)
+
+  const scanGamepads = useCallback(() => {
+    const found = Array.from(navigator.getGamepads())
+      .flatMap((gp, i): PadInfo[] => gp ? [{ index: i, id: gp.id }] : [])
+    setDetectedPads(found)
+    // Auto-select first found if nothing active yet
+    if (found.length > 0 && activePadIdx === null) {
+      setActivePadIdx(found[0].index)
+    }
+  }, [activePadIdx])
+
+  useEffect(() => {
+    const onConnect = (e: GamepadEvent) => {
+      setDetectedPads(prev =>
+        prev.some(p => p.index === e.gamepad.index)
+          ? prev
+          : [...prev, { index: e.gamepad.index, id: e.gamepad.id }],
+      )
+      // Auto-select first controller to connect
+      setActivePadIdx(prev => prev ?? e.gamepad.index)
+    }
+    const onDisconnect = (e: GamepadEvent) => {
+      setDetectedPads(prev => prev.filter(p => p.index !== e.gamepad.index))
+      setActivePadIdx(prev => prev === e.gamepad.index ? null : prev)
+    }
+    window.addEventListener('gamepadconnected',    onConnect)
+    window.addEventListener('gamepaddisconnected', onDisconnect)
+    return () => {
+      window.removeEventListener('gamepadconnected',    onConnect)
+      window.removeEventListener('gamepaddisconnected', onDisconnect)
+    }
+  }, [])
+
+  const lastSendMs = useRef(0)
+  const modeRef    = useRef(telemetry?.mode ?? 'manual')
+  useEffect(() => { modeRef.current = telemetry?.mode ?? 'manual' }, [telemetry?.mode])
+
+  const handleAxes = useCallback(
+    (pan: number, tilt: number, zoom: number) => {
+      if (modeRef.current !== 'manual') return
+      const now = performance.now()
+      if (now - lastSendMs.current < GAMEPAD_INTERVAL_MS) return
+      lastSendMs.current = now
+      sendPanTilt(pan, tilt)
+      sendZoom(zoom)
+    },
+    [sendPanTilt, sendZoom],
+  )
+
+  // Pass activePadIdx: null disables the gamepad hook; a number uses that specific index
+  const gamepad = useGamepad(handleAxes, activePadIdx)
+  useEffect(() => { if (gamepad.btnStop)  sendStop() },      [gamepad.btnStop,  sendStop])
+  useEffect(() => { if (gamepad.btnFocus) sendAutofocus() }, [gamepad.btnFocus, sendAutofocus])
+
+  // ── Camera controls ────────────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
     if (!cameraId) return
-    try {
-      setLoopLoading(true)
-      await api.cameras.start(cameraId)
-      setCamStatus(await api.cameras.status(cameraId))
-    } catch (e) { console.error(e) }
-    finally { setLoopLoading(false) }
+    try { setLoopLoading(true); await api.cameras.start(cameraId); setCamStatus(await api.cameras.status(cameraId)) }
+    catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
   }, [cameraId])
 
   const stopCamera = useCallback(async () => {
     if (!cameraId) return
-    try {
-      setLoopLoading(true)
-      await api.cameras.stop(cameraId)
-      setCamStatus(await api.cameras.status(cameraId))
-    } catch (e) { console.error(e) }
-    finally { setLoopLoading(false) }
+    try { setLoopLoading(true); await api.cameras.stop(cameraId); setCamStatus(await api.cameras.status(cameraId)) }
+    catch (e) { console.error(e) }
+    finally   { setLoopLoading(false) }
   }, [cameraId])
 
+  // ── Config patch ──────────────────────────────────────────────────────────
   const patchConfig = useCallback((update: ConfigUpdate) => {
     if (!cameraId) return
     setConfig(prev => {
@@ -177,27 +248,7 @@ export function ControlTab({ ws, cameraId }: Props) {
     }, 400)
   }, [cameraId])
 
-  // Gamepad
-  const lastSendMs = useRef(0)
-  const modeRef    = useRef(telemetry?.mode ?? 'manual')
-  useEffect(() => { modeRef.current = telemetry?.mode ?? 'manual' }, [telemetry?.mode])
-
-  const handleAxes = useCallback(
-    (pan: number, tilt: number, zoom: number) => {
-      if (modeRef.current !== 'manual') return
-      const now = performance.now()
-      if (now - lastSendMs.current < GAMEPAD_INTERVAL_MS) return
-      lastSendMs.current = now
-      sendPanTilt(pan, tilt)
-      sendZoom(zoom)
-    },
-    [sendPanTilt, sendZoom],
-  )
-
-  const gamepad = useGamepad(handleAxes)
-  useEffect(() => { if (gamepad.btnStop)  sendStop() },      [gamepad.btnStop,  sendStop])
-  useEffect(() => { if (gamepad.btnFocus) sendAutofocus() }, [gamepad.btnFocus, sendAutofocus])
-
+  // ── Derived display values ─────────────────────────────────────────────────
   const isRecording = telemetry?.rec_active ?? false
   const mode        = telemetry?.mode ?? 'manual'
   const isUnlimited = (telemetry?.rec_total ?? -1) === 0
@@ -205,7 +256,6 @@ export function ControlTab({ ws, cameraId }: Props) {
     ? Math.min(100, (telemetry.rec_elapsed / Math.max(1, telemetry.rec_total)) * 100)
     : 0
 
-  // Find the closest duration option for the select (default to 30s if no match)
   const durationValue = config
     ? (DURATION_OPTIONS.find(o => o.value === config.record.duration_sec)?.value ?? DURATION_OPTIONS[0].value)
     : 30
@@ -216,13 +266,17 @@ export function ControlTab({ ws, cameraId }: Props) {
     ? <span className="text-xs text-white/30">Saving…</span>
     : null
 
+  // Friendly short name for a gamepad id string
+  const padName = (id: string) => id.split('(')[0].trim() || 'Controller'
+
   return (
     <div className="h-full overflow-auto px-1 py-2">
       <div className="flex gap-3">
 
-        {/* ── Left panel: Camera + Recording ─────────────────────────────── */}
+        {/* ── Left panel ──────────────────────────────────────────────────── */}
         <div className="w-52 shrink-0 space-y-3">
 
+          {/* Camera */}
           <Card title="Camera">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -257,7 +311,75 @@ export function ControlTab({ ws, cameraId }: Props) {
             </div>
           </Card>
 
-          {/* ── Recording: merged settings + start/stop ── */}
+          {/* Joystick */}
+          <Card>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white/40 uppercase tracking-wider">Joystick</span>
+                {gamepad.connected && (
+                  <StatusDot active={true} />
+                )}
+              </div>
+
+              {/* Controller picker + scan */}
+              <div className="flex gap-1.5">
+                <select
+                  value={activePadIdx ?? ''}
+                  onChange={e => setActivePadIdx(e.target.value === '' ? null : parseInt(e.target.value))}
+                  className="flex-1 min-w-0 text-xs bg-surface-base border border-surface-border
+                             rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500">
+                  <option value="">— none —</option>
+                  {detectedPads.map(pad => (
+                    <option key={pad.index} value={pad.index}>
+                      {padName(pad.id).slice(0, 22)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={scanGamepads}
+                  title="Scan for controllers"
+                  className="shrink-0 px-2 py-1 rounded border border-surface-border
+                             bg-surface-raised hover:bg-surface-hover text-white/50
+                             hover:text-white transition-colors">
+                  <RefreshCw size={11} />
+                </button>
+              </div>
+
+              {/* Hint when nothing found */}
+              {detectedPads.length === 0 && (
+                <p className="text-[11px] text-white/25 text-center leading-snug">
+                  Press a button on your<br />controller, then scan
+                </p>
+              )}
+
+              {/* Axis bars */}
+              {gamepad.connected && (
+                <div className="space-y-1.5 pt-1 border-t border-surface-border">
+                  <AxisBar label="Pan"  value={gamepad.pan} />
+                  <AxisBar label="Tilt" value={gamepad.tilt} />
+                  <AxisBar label="Zoom" value={gamepad.zoom} />
+                </div>
+              )}
+
+              {/* Quick action buttons */}
+              {gamepad.connected && (
+                <div className="flex gap-1.5">
+                  <button onClick={sendStop}
+                    className="flex-1 py-1.5 text-xs rounded bg-red-900/50 hover:bg-red-700/60
+                               text-red-300 border border-red-800/60 transition-colors">
+                    ✕ Stop
+                  </button>
+                  <button onClick={sendAutofocus}
+                    className="flex-1 py-1.5 text-xs rounded bg-surface-raised hover:bg-surface-hover
+                               text-white/60 hover:text-white border border-surface-border transition-colors">
+                    ◎ Focus
+                  </button>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Recording */}
           <Card>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -276,9 +398,7 @@ export function ControlTab({ ws, cameraId }: Props) {
                         className="flex-1 text-xs bg-surface-base border border-surface-border
                                    rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500">
                         {DURATION_OPTIONS.map(opt => (
-                          <option
-                            key={opt.value}
-                            value={opt.value}
+                          <option key={opt.value} value={opt.value}
                             className={opt.value === 0 ? 'text-amber-400' : ''}>
                             {opt.label}
                           </option>
@@ -286,9 +406,7 @@ export function ControlTab({ ws, cameraId }: Props) {
                       </select>
                     </div>
                     {durationValue === 0 && (
-                      <p className="text-xs text-amber-400/70 pl-[88px]">
-                        Record until manually stopped
-                      </p>
+                      <p className="text-xs text-amber-400/70 pl-[88px]">Record until stopped</p>
                     )}
                   </div>
 
@@ -370,7 +488,7 @@ export function ControlTab({ ws, cameraId }: Props) {
           </Card>
         </div>
 
-        {/* ── Center: Video + Joystick + Tuning (auto_track only) ────────── */}
+        {/* ── Center: Video + Auto-track Tuning ───────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-3">
 
           <Card>
@@ -398,11 +516,7 @@ export function ControlTab({ ws, cameraId }: Props) {
             </div>
           </Card>
 
-          <Card title="Joystick">
-            <JoystickStatus state={gamepad} onStop={sendStop} onAutofocus={sendAutofocus} />
-          </Card>
-
-          {/* Auto-track tuning — wider sliders, only visible in auto_track */}
+          {/* Auto-track tuning — only visible in auto_track */}
           {mode === 'auto_track' && config && (
             <Card>
               <div className="space-y-4">
@@ -414,7 +528,6 @@ export function ControlTab({ ws, cameraId }: Props) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-10 gap-y-1">
-                  {/* Pan */}
                   <div className="space-y-3">
                     <p className="text-xs font-medium text-white/30 uppercase tracking-wider">Pan</p>
                     <SliderField label="Dead zone" unit="px" decimals={0} step={1}
@@ -437,7 +550,6 @@ export function ControlTab({ ws, cameraId }: Props) {
                       onChange={v => patchConfig({ pan_invert: v })} />
                   </div>
 
-                  {/* Zoom */}
                   <div className="space-y-3">
                     <p className="text-xs font-medium text-white/30 uppercase tracking-wider">Zoom</p>
                     <SliderField label="Zoom-in  <" step={0.01}
@@ -468,7 +580,7 @@ export function ControlTab({ ws, cameraId }: Props) {
           )}
         </div>
 
-        {/* ── Right panel: Telemetry + PTZ Control + Mode ─────────────────── */}
+        {/* ── Right panel: Telemetry + PTZ Control + Mode ──────────────────── */}
         <div className="w-52 shrink-0 space-y-3">
 
           <Card title="Telemetry">
