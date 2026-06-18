@@ -135,11 +135,15 @@ Interactive API docs: `http://localhost:9090/docs`.
 
 ```bash
 source .venv/bin/activate
-python run_server.py                  # production (serves pre-built frontend)
-python run_server.py --dev            # development (auto-reload, no frontend build needed)
-python run_server.py --port 8080      # custom port
-python run_server.py --host 127.0.0.1 # bind to localhost only
+python run_server.py                       # production (serves pre-built frontend)
+python run_server.py --tailscale           # also configure Tailscale Serve (HTTPS)
+python run_server.py --dev                 # development (auto-reload, no frontend build needed)
+python run_server.py --port 8080           # custom port
+python run_server.py --host 127.0.0.1     # bind to localhost only
 ```
+
+`--tailscale` runs `tailscale serve https / http://localhost:9090` before starting uvicorn,
+so the app is reachable at `https://<machine>.tailXXXX.ts.net` without browser HTTPS warnings.
 
 > **Always run from the project root** (the directory containing `backend/` and `frontend/`).
 > Running from inside `backend/` will fail with `ModuleNotFoundError: No module named 'backend'`.

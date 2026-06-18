@@ -10,6 +10,7 @@ Run from the project root (the directory that contains backend/ and frontend/):
 """
 import argparse
 import os
+import subprocess
 import sys
 
 # Ensure the project root is on sys.path so `import backend` resolves correctly
@@ -23,14 +24,23 @@ import uvicorn  # noqa: E402 — must come after sys.path fix
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Eagle Tracker server")
-    parser.add_argument("--host",  default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    parser.add_argument("--port",  default=9090, type=int, help="Bind port (default: 9090)")
-    parser.add_argument("--dev",   action="store_true", help="Enable auto-reload (development)")
+    parser.add_argument("--host",      default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--port",      default=9090, type=int, help="Bind port (default: 9090)")
+    parser.add_argument("--dev",       action="store_true", help="Enable auto-reload (development)")
+    parser.add_argument("--tailscale", action="store_true",
+                        help="Run 'tailscale serve https / http://localhost:PORT' before starting")
     args = parser.parse_args()
 
     # Change to the project root so relative paths inside the app (static/,
     # videos/, logs/) resolve correctly.
     os.chdir(ROOT)
+
+    if args.tailscale:
+        cmd = ["tailscale", "serve", "https", "/", f"http://localhost:{args.port}"]
+        print(f"Configuring Tailscale Serve: {' '.join(cmd)}")
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            print("Warning: 'tailscale serve' failed — continuing without it.", file=sys.stderr)
 
     uvicorn.run(
         "backend.main:app",
