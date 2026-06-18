@@ -201,7 +201,8 @@ class TrackLoop:
                 session.tracking.fps = fps
 
                 # ── Draw zone markers + HUD ───────────────────────────────────
-                _draw_zones(frame, frame_cx, frame_h, cfg)
+                if session.mode == 'auto_track':
+                    _draw_zones(frame, frame_cx, frame_h, cfg)
                 draw_hud(
                     frame,
                     rec_on    = recorder.is_active,

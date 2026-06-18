@@ -78,6 +78,7 @@ export interface ConfigUpdate {
   detect_classes?:      number | null
   record_duration_sec?: number
   record_fps?:          number
+  record_res?:          [number, number]
   hfov_deg?:            number
   model_path?:          string
 }

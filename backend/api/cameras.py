@@ -159,8 +159,9 @@ class ConfigUpdate(BaseModel):
     zoom_invert:        Optional[bool]  = None
     zoom_ema_alpha:     Optional[float] = None
     detect_classes:     Optional[int]   = None
-    record_duration_sec: Optional[float] = None
-    record_fps:         Optional[int]   = None
+    record_duration_sec: Optional[float]     = None
+    record_fps:         Optional[int]        = None
+    record_res:         Optional[list[int]]  = None
     hfov_deg:           Optional[float] = None
     model_path:         Optional[str]   = None
 
@@ -184,6 +185,8 @@ async def update_config(camera_id: str, update: ConfigUpdate):
     if "detect_classes" in update.model_fields_set: t.detect_classes = update.detect_classes
     if update.record_duration_sec is not None: r.duration_sec    = update.record_duration_sec
     if update.record_fps         is not None: r.fps              = update.record_fps
+    if update.record_res is not None and len(update.record_res) == 2:
+        r.record_res = (int(update.record_res[0]), int(update.record_res[1]))
     if update.hfov_deg           is not None: s.hfov_deg         = update.hfov_deg
     if update.model_path         is not None: t.model_path       = update.model_path
 
