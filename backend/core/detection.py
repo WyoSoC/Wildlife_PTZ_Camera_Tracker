@@ -47,12 +47,12 @@ class BBox:
     def area(self) -> int:
         return self.width * self.height
 
-    def draw(self, img: np.ndarray, color: tuple = (0, 255, 0)) -> None:
-        cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), color, 2)
+    def draw(self, img: np.ndarray, color: tuple = (0, 255, 0), thickness: int = 2) -> None:
+        cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), color, thickness)
         label = f"ID:{self.track_id}" if self.track_id is not None else f"{self.conf:.2f}"
         cv2.putText(
             img, label, (self.x1, max(0, self.y1 - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2,
+            cv2.FONT_HERSHEY_SIMPLEX, 0.45 if thickness == 1 else 0.55, color, thickness, cv2.LINE_AA,
         )
 
 

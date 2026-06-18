@@ -256,6 +256,11 @@ class TrackLoop:
                     session.tracking.speed_px   = 0.0
                     session.tracking.speed_deg  = 0.0
 
+                    # Draw detections subtly — thin, muted boxes so the operator
+                    # can see what the model sees without implying active tracking.
+                    for b in raw_ok:
+                        b.draw(frame, color=(130, 210, 170), thickness=1)
+
                 session.tracking.fps        = fps
                 session.tracking.scan_phase = scan_phase
 
