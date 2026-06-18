@@ -50,7 +50,7 @@ class CommandConfig:
 
 @dataclass
 class RecordConfig:
-    duration_sec: float = 40.0
+    duration_sec: float = 30.0
     fps: int = 30
     record_res: tuple[int, int] = (1920, 1080)
     output_dir: str = "videos/with_box"
@@ -93,7 +93,7 @@ BIRDDOG = AppConfig(
     camera=CameraConfig(source_match="birddog"),
     video=VideoConfig(process_res=(480, 288)),
     track=TrackConfig(model_path="yolo26s.pt"),
-    record=RecordConfig(duration_sec=40, fps=30, record_res=(1920, 1080)),
+    record=RecordConfig(duration_sec=30, fps=30, record_res=(1920, 1080)),
 )
 
 BOLIN = AppConfig(

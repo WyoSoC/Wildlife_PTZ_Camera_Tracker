@@ -84,7 +84,7 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
 }
 
 export function CameraTab() {
-  const { cameras, activeCameraId, setActiveCameraId, refreshCameras } = useServer()
+  const { cameras, activeCameraId, setActiveCameraId, refreshCameras, server } = useServer()
   const cameraId = activeCameraId
 
   const [sources,     setSources]     = useState<NDISource[]>([])
@@ -113,6 +113,9 @@ export function CameraTab() {
     } catch (e) { console.error(e) }
     finally   { setScanning(false) }
   }, [])
+
+  // Auto-scan on tab mount
+  useEffect(() => { scan() }, [scan])
 
   const connectAndStart = useCallback(async (source: NDISource) => {
     if (!cameraId) return
@@ -211,7 +214,7 @@ export function CameraTab() {
                 {scanning ? 'Scanning…' : 'Scan Network'}
               </Button>
               {sources.length === 0 && !scanning && (
-                <p className="text-xs text-white/30 text-center py-2">No sources — click Scan</p>
+                <p className="text-xs text-white/30 text-center py-2">No NDI sources found</p>
               )}
               {sources.map((src) => {
                 const active = camStatus?.source_name === src.name && camStatus?.running
@@ -334,7 +337,7 @@ export function CameraTab() {
         {/* ── Right panel: config ── */}
         <div className="flex-1 space-y-3">
           <h2 className="text-sm font-semibold text-white/60">
-            Configuration — {cameraId ?? '—'}
+            {server?.name ?? 'server-1'}: AI Models Management
           </h2>
 
           {config && cameraId ? (
@@ -354,17 +357,56 @@ export function CameraTab() {
               </Card>
 
               {/* Specialized single-species models */}
-              <Card title="Specialized Models">
-                <ModelSection
-                  models={models.filter(m => m.source === 'specialized')}
-                  activePath={config.track.model_path}
-                  downloading={downloading}
-                  dlError={dlError}
-                  onSwitch={switchModel}
-                  onDownload={downloadModel}
-                  speciesLimit={1}
-                />
-              </Card>
+              {(() => {
+                const specialized       = models.filter(m => m.source === 'specialized')
+                const specDownloaded    = specialized.filter(m => m.downloaded)
+                const specNotDownloaded = specialized.filter(m => !m.downloaded)
+                return (
+                  <Card title="Specialized Models">
+                    <div className="space-y-2">
+                      {specDownloaded.length === 0 && specNotDownloaded.length === 0 && (
+                        <p className="text-xs text-white/30 text-center py-2">None</p>
+                      )}
+
+                      {/* Downloaded: always visible at top */}
+                      {specDownloaded.length > 0 && (
+                        <ModelSection
+                          models={specDownloaded}
+                          activePath={config.track.model_path}
+                          downloading={downloading}
+                          dlError={dlError}
+                          onSwitch={switchModel}
+                          onDownload={downloadModel}
+                          speciesLimit={1}
+                        />
+                      )}
+
+                      {/* Not-downloaded: collapsed by default */}
+                      {specNotDownloaded.length > 0 && (
+                        <details className="group">
+                          <summary className="cursor-pointer select-none list-none flex items-center gap-1
+                                             text-[10px] font-semibold text-white/30 uppercase tracking-wider
+                                             hover:text-white/50 transition-colors py-0.5 px-1">
+                            <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                            Available to Download ({specNotDownloaded.length})
+                          </summary>
+                          <div className="mt-2">
+                            <ModelSection
+                              models={specNotDownloaded}
+                              activePath={config.track.model_path}
+                              downloading={downloading}
+                              dlError={dlError}
+                              onSwitch={switchModel}
+                              onDownload={downloadModel}
+                              speciesLimit={1}
+                            />
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  </Card>
+                )
+              })()}
 
               {/* Custom .pt files */}
               {models.some(m => m.source === 'custom') && (

@@ -61,8 +61,9 @@ class VideoRecorder:
         self._proc: Optional[subprocess.Popen] = None
         self._next_write_t = 0.0
         self._frames_written = 0
-        self._frame_period = 1.0 / cfg.fps
-        self._target_frames = int(cfg.fps * cfg.duration_sec)
+        self._frame_period  = 1.0 / cfg.fps
+        # duration_sec == 0 means unlimited — record until manually stopped
+        self._target_frames = int(cfg.fps * cfg.duration_sec) if cfg.duration_sec > 0 else 0
         self._w, self._h   = cfg.record_res  # (width, height)
 
     # ── properties ─────────────────────────────────────────────────────────────
@@ -115,7 +116,8 @@ class VideoRecorder:
 
         resized = cv2.resize(frame, (self._w, self._h))
 
-        while now >= self._next_write_t and self._frames_written < self._target_frames:
+        unlimited = self._target_frames == 0
+        while now >= self._next_write_t and (unlimited or self._frames_written < self._target_frames):
             try:
                 self._proc.stdin.write(resized.tobytes())
             except BrokenPipeError:
@@ -125,7 +127,7 @@ class VideoRecorder:
             self._frames_written += 1
             self._next_write_t  += self._frame_period
 
-        if self._frames_written >= self._target_frames:
+        if not unlimited and self._frames_written >= self._target_frames:
             self.stop()
             return True
         return False

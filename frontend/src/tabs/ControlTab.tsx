@@ -26,6 +26,14 @@ const RES_OPTIONS: [number, number][] = [
   [854, 480],
 ]
 
+const DURATION_OPTIONS = [
+  { label: '30 seconds',  value: 30 },
+  { label: '5 minutes',   value: 300 },
+  { label: '20 minutes',  value: 1200 },
+  { label: '30 minutes',  value: 1800 },
+  { label: '⚠ Unlimited', value: 0 },
+]
+
 // ── PTZ press-hold button ──────────────────────────────────────────────────────
 
 function PtzBtn({
@@ -90,6 +98,19 @@ export function ControlTab({ ws, cameraId }: Props) {
     if (!cameraId) return
     api.cameras.getConfig(cameraId).then(setConfig).catch(console.error)
   }, [cameraId])
+
+  // Auto-connect video when camera starts running
+  const rtcStateRef    = useRef(rtcState)
+  const wasRunningRef  = useRef(false)
+  useEffect(() => { rtcStateRef.current = rtcState }, [rtcState])
+  useEffect(() => {
+    const running = camStatus?.running ?? false
+    if (running && !wasRunningRef.current &&
+        rtcStateRef.current !== 'connecting' && rtcStateRef.current !== 'connected') {
+      startWebRTC()
+    }
+    wasRunningRef.current = running
+  }, [camStatus?.running, startWebRTC])
 
   const startCamera = useCallback(async () => {
     if (!cameraId) return
@@ -179,9 +200,15 @@ export function ControlTab({ ws, cameraId }: Props) {
 
   const isRecording = telemetry?.rec_active ?? false
   const mode        = telemetry?.mode ?? 'manual'
-  const recPct      = telemetry
+  const isUnlimited = (telemetry?.rec_total ?? -1) === 0
+  const recPct      = (!isUnlimited && telemetry)
     ? Math.min(100, (telemetry.rec_elapsed / Math.max(1, telemetry.rec_total)) * 100)
     : 0
+
+  // Find the closest duration option for the select (default to 30s if no match)
+  const durationValue = config
+    ? (DURATION_OPTIONS.find(o => o.value === config.record.duration_sec)?.value ?? DURATION_OPTIONS[0].value)
+    : 30
 
   const SaveDot = () => saveStatus === 'saved'
     ? <span className="text-xs text-green-400 flex gap-1 items-center"><CheckCircle2 size={11}/> Saved</span>
@@ -190,8 +217,8 @@ export function ControlTab({ ws, cameraId }: Props) {
     : null
 
   return (
-    <div className="h-full overflow-auto p-4">
-      <div className="flex gap-4 max-w-7xl mx-auto">
+    <div className="h-full overflow-auto px-1 py-2">
+      <div className="flex gap-3">
 
         {/* ── Left panel: Camera + Recording ─────────────────────────────── */}
         <div className="w-52 shrink-0 space-y-3">
@@ -240,9 +267,30 @@ export function ControlTab({ ws, cameraId }: Props) {
 
               {config ? (
                 <>
-                  <SliderField label="Duration" unit="s" decimals={0} step={5}
-                    min={5} max={300} value={config.record.duration_sec}
-                    onChange={v => patchConfig({ record_duration_sec: Math.round(v) })} />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 text-xs text-white/50">Duration</span>
+                      <select
+                        value={durationValue}
+                        onChange={e => patchConfig({ record_duration_sec: parseInt(e.target.value) })}
+                        className="flex-1 text-xs bg-surface-base border border-surface-border
+                                   rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500">
+                        {DURATION_OPTIONS.map(opt => (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            className={opt.value === 0 ? 'text-amber-400' : ''}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {durationValue === 0 && (
+                      <p className="text-xs text-amber-400/70 pl-[88px]">
+                        Record until manually stopped
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-2">
                     <span className="w-20 shrink-0 text-xs text-white/50">FPS</span>
@@ -287,14 +335,26 @@ export function ControlTab({ ws, cameraId }: Props) {
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
                           Recording
                         </span>
-                        <span className="font-mono text-white/60">
-                          {telemetry?.rec_elapsed.toFixed(0)}s / {telemetry?.rec_total.toFixed(0)}s
-                        </span>
+                        {isUnlimited ? (
+                          <span className="font-mono text-amber-400/80">
+                            {telemetry?.rec_elapsed.toFixed(0)}s ∞
+                          </span>
+                        ) : (
+                          <span className="font-mono text-white/60">
+                            {telemetry?.rec_elapsed.toFixed(0)}s / {telemetry?.rec_total.toFixed(0)}s
+                          </span>
+                        )}
                       </div>
-                      <div className="h-1.5 bg-surface-border rounded-full overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full transition-all duration-500"
-                             style={{ width: `${recPct}%` }} />
-                      </div>
+                      {isUnlimited ? (
+                        <div className="h-1.5 bg-surface-border rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: '40%' }} />
+                        </div>
+                      ) : (
+                        <div className="h-1.5 bg-surface-border rounded-full overflow-hidden">
+                          <div className="h-full bg-red-500 rounded-full transition-all duration-500"
+                               style={{ width: `${recPct}%` }} />
+                        </div>
+                      )}
                     </div>
                     <Button variant="ghost" size="sm" className="w-full" onClick={() => setRecording('stop')}>
                       <Square size={11} /> Stop Recording
@@ -421,12 +481,12 @@ export function ControlTab({ ws, cameraId }: Props) {
               <div className="grid gap-1" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                 <div />
                 <PtzBtn className="h-10 w-full"
-                  onActivate={() => sendPanTilt(0, -PTZ_SPEED)} onDeactivate={sendStop}>
+                  onActivate={() => sendPanTilt(0, PTZ_SPEED)} onDeactivate={sendStop}>
                   <ChevronUp size={18} />
                 </PtzBtn>
                 <div />
                 <PtzBtn className="h-10 w-full"
-                  onActivate={() => sendPanTilt(-PTZ_SPEED, 0)} onDeactivate={sendStop}>
+                  onActivate={() => sendPanTilt(PTZ_SPEED, 0)} onDeactivate={sendStop}>
                   <ChevronLeft size={18} />
                 </PtzBtn>
                 <button onClick={sendStop}
@@ -436,12 +496,12 @@ export function ControlTab({ ws, cameraId }: Props) {
                   ■
                 </button>
                 <PtzBtn className="h-10 w-full"
-                  onActivate={() => sendPanTilt(PTZ_SPEED, 0)} onDeactivate={sendStop}>
+                  onActivate={() => sendPanTilt(-PTZ_SPEED, 0)} onDeactivate={sendStop}>
                   <ChevronRight size={18} />
                 </PtzBtn>
                 <div />
                 <PtzBtn className="h-10 w-full"
-                  onActivate={() => sendPanTilt(0, PTZ_SPEED)} onDeactivate={sendStop}>
+                  onActivate={() => sendPanTilt(0, -PTZ_SPEED)} onDeactivate={sendStop}>
                   <ChevronDown size={18} />
                 </PtzBtn>
                 <div />
@@ -450,11 +510,11 @@ export function ControlTab({ ws, cameraId }: Props) {
               {/* Zoom */}
               <div className="grid grid-cols-2 gap-1">
                 <PtzBtn className="h-9 w-full"
-                  onActivate={() => sendZoom(-PTZ_SPEED)} onDeactivate={sendStop}>
+                  onActivate={() => sendZoom(PTZ_SPEED)} onDeactivate={sendStop}>
                   <ZoomIn size={14} className="mr-1" /><span className="text-xs">In</span>
                 </PtzBtn>
                 <PtzBtn className="h-9 w-full"
-                  onActivate={() => sendZoom(PTZ_SPEED)} onDeactivate={sendStop}>
+                  onActivate={() => sendZoom(-PTZ_SPEED)} onDeactivate={sendStop}>
                   <ZoomOut size={14} className="mr-1" /><span className="text-xs">Out</span>
                 </PtzBtn>
               </div>
