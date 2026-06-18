@@ -15,6 +15,7 @@ import collections
 import logging
 import threading
 import time
+from datetime import datetime
 from typing import Optional
 
 import cv2
@@ -203,6 +204,7 @@ class TrackLoop:
                 # ── Draw zone markers + HUD ───────────────────────────────────
                 if session.mode == 'auto_track':
                     _draw_zones(frame, frame_cx, frame_h, cfg)
+                _ts = datetime.fromtimestamp(now)
                 draw_hud(
                     frame,
                     rec_on    = recorder.is_active,
@@ -211,6 +213,8 @@ class TrackLoop:
                     total     = cfg.record.duration_sec,
                     speed_px  = session.tracking.speed_px,
                     speed_deg = session.tracking.speed_deg,
+                    detected  = detected,
+                    timestamp = _ts.strftime('%Y-%m-%d %H:%M:%S') + f'.{_ts.microsecond // 100000}',
                 )
 
                 # ── Push to WebRTC (thread → asyncio) ─────────────────────────
