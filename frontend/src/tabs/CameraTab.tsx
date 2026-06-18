@@ -14,16 +14,20 @@ import { StatusDot } from '../components/ui/Badge'
 
 const HF_BASE = 'https://huggingface.co/'
 
-function HFLink({ repoId }: { repoId: string | null }) {
-  if (!repoId) return null
+function SourceLink({ model }: { model: ModelInfo }) {
+  const url   = model.source_url ?? (model.repo_id ? HF_BASE + model.repo_id : null)
+  const title = model.source_url
+    ? 'View release page'
+    : model.repo_id ? `View on HuggingFace: ${model.repo_id}` : null
+  if (!url) return null
   return (
     <a
-      href={HF_BASE + repoId}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       onClick={e => e.stopPropagation()}
       className="shrink-0 text-orange-400/60 hover:text-orange-400 transition-colors"
-      title={`View on HuggingFace: ${repoId}`}
+      title={title ?? undefined}
     >
       <ExternalLink size={11} />
     </a>
@@ -56,7 +60,7 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
             >
               <div className="flex items-start justify-between gap-1">
                 <p className="font-medium text-white/60 truncate">{m.description}</p>
-                <HFLink repoId={m.repo_id} />
+                <SourceLink model={m} />
               </div>
               {m.species.length > 0 && (
                 <p className="text-white/30 truncate">
@@ -93,7 +97,7 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
             <div className="flex items-start justify-between gap-1">
               <p className="font-medium text-white truncate">{m.description}</p>
               <div className="flex items-center gap-1 shrink-0">
-                <HFLink repoId={m.repo_id} />
+                <SourceLink model={m} />
                 {active && <CheckCircle2 size={12} className="text-green-400 mt-0.5" />}
               </div>
             </div>

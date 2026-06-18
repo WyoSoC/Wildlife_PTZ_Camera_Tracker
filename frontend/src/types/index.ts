@@ -141,6 +141,7 @@ export interface ModelInfo {
   downloaded:      boolean
   repo_id:         string | null
   download_url:    string | null
+  source_url:      string | null
 }
 
 // ── Telemetry ─────────────────────────────────────────────────────────────────

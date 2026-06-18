@@ -40,6 +40,7 @@ class ModelInfo:
     repo_id:        Optional[str] = None
     hf_filename:    str = "best.pt"
     download_url:   Optional[str] = None
+    source_url:     Optional[str] = None       # any canonical source link (GitHub, HF, etc.)
     downloaded:     bool = True
 
 
@@ -74,7 +75,7 @@ _GENERAL_CATALOG: list[ModelInfo] = [
         species=["animal (generic)", "person", "vehicle"],
         source="megadetector",
         auto_download=True,
-        repo_id="agentmorris/megadetector",
+        source_url="https://github.com/agentmorris/MegaDetector/releases/tag/v1000.0",
         download_url="https://github.com/agentmorris/MegaDetector/releases/download/v1000.0/md_v1000.0.0-larch.pt",
     ),
     ModelInfo(
@@ -86,7 +87,7 @@ _GENERAL_CATALOG: list[ModelInfo] = [
         species=["animal (generic)", "person", "vehicle"],
         source="megadetector",
         auto_download=True,
-        repo_id="agentmorris/megadetector",
+        source_url="https://github.com/agentmorris/MegaDetector/releases/tag/v1000.0",
         download_url="https://github.com/agentmorris/MegaDetector/releases/download/v1000.0/md_v1000.0.0-sorrel.pt",
     ),
 ]

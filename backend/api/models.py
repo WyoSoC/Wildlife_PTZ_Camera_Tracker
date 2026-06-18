@@ -34,6 +34,7 @@ async def get_models():
                 "downloaded":     m.downloaded,
                 "repo_id":        m.repo_id,
                 "download_url":   m.download_url,
+                "source_url":     m.source_url,
             }
             for m in list_models()
         ],
