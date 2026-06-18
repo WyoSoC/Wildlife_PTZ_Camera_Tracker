@@ -32,12 +32,15 @@ class NDIVideoTrack(VideoStreamTrack):
 
         frame_bgr = self._session.latest_frame()
         if frame_bgr is None:
-            frame_bgr = _BLACK_FRAME
+            try:
+                frame_bgr = await asyncio.wait_for(self._session.next_frame(), timeout=0.1)
+            except asyncio.TimeoutError:
+                frame_bgr = _BLACK_FRAME
         else:
             try:
                 frame_bgr = await asyncio.wait_for(self._session.next_frame(), timeout=0.1)
             except asyncio.TimeoutError:
-                frame_bgr = self._session.latest_frame() or _BLACK_FRAME
+                pass  # keep the frame_bgr we already have
 
         rgb         = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         video_frame = VideoFrame.from_ndarray(rgb, format="rgb24")
