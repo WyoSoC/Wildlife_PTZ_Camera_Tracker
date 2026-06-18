@@ -393,9 +393,70 @@ export function CameraTab() {
                     )
                   })()}
 
-                  {/* MegaDetector + other custom files */}
+                  {/* MegaDetector */}
                   {(() => {
-                    const other = models.filter(m => m.source === 'megadetector' || (m.source === 'custom' && m.downloaded))
+                    const megadetector = models.filter(m => m.source === 'megadetector')
+                    if (!megadetector.length) return null
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
+                          MegaDetector
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {megadetector.map(m => {
+                            const active  = config.track.model_path === m.path ||
+                                            config.track.model_path === m.name + '.pt'
+                            const isDling = downloading.has(m.name)
+                            const err     = dlError[m.name]
+
+                            if (!m.downloaded) {
+                              return (
+                                <div key={m.name}
+                                  className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
+                                >
+                                  <p className="font-medium text-white/60 truncate">{m.description}</p>
+                                  <p className="text-white/30 truncate">{m.species.join(', ')}</p>
+                                  {err && <p className="text-red-400/80 text-[10px] truncate">{err}</p>}
+                                  <button
+                                    onClick={() => downloadModel(m.name)}
+                                    disabled={isDling}
+                                    className="flex items-center gap-1 text-blue-400 hover:text-blue-300
+                                               disabled:opacity-50 transition-colors"
+                                  >
+                                    {isDling
+                                      ? <><Loader size={11} className="animate-spin" /> Downloading…</>
+                                      : <><Download size={11} /> Download (~700 MB)</>
+                                    }
+                                  </button>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <button key={m.name} onClick={() => switchModel(m.name)}
+                                className={[
+                                  'text-left p-2.5 rounded-lg border text-xs transition-colors',
+                                  active
+                                    ? 'bg-green-900/30 border-green-700/60'
+                                    : 'bg-surface-raised border-surface-border hover:border-blue-600/40',
+                                ].join(' ')}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="font-medium text-white truncate">{m.description}</p>
+                                  {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+                                </div>
+                                <p className="text-white/35 mt-0.5 truncate">{m.species.join(', ')}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Other custom .pt files */}
+                  {(() => {
+                    const other = models.filter(m => m.source === 'custom' && m.downloaded)
                     if (!other.length) return null
                     return (
                       <div className="space-y-2">
@@ -419,9 +480,6 @@ export function CameraTab() {
                                   <p className="font-medium text-white truncate">{m.description}</p>
                                   {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
                                 </div>
-                                {m.species.length > 0 && (
-                                  <p className="text-white/35 mt-0.5 truncate">{m.species.join(', ')}</p>
-                                )}
                               </button>
                             )
                           })}

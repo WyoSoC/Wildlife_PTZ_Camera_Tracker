@@ -38,6 +38,7 @@ class ModelInfo:
     auto_download:  bool = True                # can be fetched automatically
     repo_id:        Optional[str] = None       # HuggingFace repo ID
     hf_filename:    str = "best.pt"            # filename within the HF repo
+    download_url:   Optional[str] = None       # direct URL fallback (used when repo_id is None)
     downloaded:     bool = True                # False = .pt not yet on disk
 
 
@@ -111,12 +112,13 @@ _WILDLIFE_CATALOG: dict[str, ModelInfo] = {
     "megadetector_v5.pt": ModelInfo(
         name="megadetector_v5",
         path="megadetector_v5.pt",
-        description="MegaDetector v5 — camera-trap specialist (animal / human / vehicle)",
+        description="MegaDetector v5a — camera-trap specialist (animal / human / vehicle)",
         detect_classes=None,
         species=["animal (generic)", "human", "vehicle"],
         source="megadetector",
-        auto_download=False,
+        auto_download=True,
         repo_id=None,
+        download_url="https://github.com/agentmorris/MegaDetector/releases/download/v5.0/md_v5a.0.0.pt",
     ),
 }
 

@@ -94,6 +94,7 @@ export interface ModelInfo {
   detect_classes:  number[] | null
   downloaded:      boolean
   repo_id:         string | null
+  download_url:    string | null
 }
 
 // ── Telemetry ─────────────────────────────────────────────────────────────────
