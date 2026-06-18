@@ -88,11 +88,17 @@ class NDIReceiver:
                 f"NDI source containing '{self.source_match}' not found. "
                 f"Available: {[s.ndi_name for s in sources]}"
             )
-        self._recv = ndi.recv_create_v3()
+
+        desc = ndi.RecvCreateV3()
+        desc.color_format      = ndi.RECV_COLOR_FORMAT_BGRX_BGRA  # always deliver decoded BGRA
+        desc.bandwidth         = ndi.RECV_BANDWIDTH_HIGHEST
+        desc.allow_video_fields = False                             # deinterlace; simplifies decode
+        self._recv = ndi.recv_create_v3(desc)
         if not self._recv:
             raise RuntimeError("ndi.recv_create_v3 failed")
         ndi.recv_connect(self._recv, matched)
         self.source_name = matched.ndi_name
+        self._error_frame_count = 0
 
     def close(self) -> None:
         for fn, arg in [(ndi.recv_destroy, self._recv), (ndi.find_destroy, self._finder)]:
@@ -128,6 +134,24 @@ class NDIReceiver:
 
         bgr = _decode_frame(v)
         ndi.recv_free_video_v2(self._recv, v)
+
+        # Detect the NDI "Video decoder not found" error overlay — it renders as
+        # a mostly-black frame with white text. Check once on first frame and
+        # then periodically so we don't spam the log.
+        if bgr is not None:
+            self._error_frame_count = getattr(self, "_error_frame_count", 0) + 1
+            if self._error_frame_count == 1 or self._error_frame_count % 300 == 0:
+                mean = float(np.mean(bgr))
+                if mean < 8.0:  # almost entirely black — NDI error frame
+                    logger.warning(
+                        "NDI frames from '%s' appear black (mean brightness %.1f). "
+                        "The camera is likely sending NDI|HX (H.264/H.265 compressed) "
+                        "which requires the NDI Runtime codec library. "
+                        "Fix option 1: install the NDI Runtime — https://ndi.video/for-developers/ndi-sdk/ "
+                        "Fix option 2: configure the camera to output standard NDI (not NDI|HX).",
+                        self.source_name, mean,
+                    )
+
         return bgr, now
 
     @property
@@ -149,13 +173,19 @@ class NDIReceiver:
 
 def _decode_frame(v_frame) -> np.ndarray:
     h, w = v_frame.yres, v_frame.xres
-    fb = bytes(v_frame.data)
-    if len(fb) == w * h * 4:
+    fb    = bytes(v_frame.data)
+    n     = len(fb)
+    if n == w * h * 4:
+        # BGRA (expected — we requested RECV_COLOR_FORMAT_BGRX_BGRA)
         return cv2.cvtColor(
             np.frombuffer(fb, np.uint8).reshape((h, w, 4)), cv2.COLOR_BGRA2BGR
         )
-    if len(fb) == w * h * 2:
+    if n == w * h * 2:
+        # UYVY — some SDK versions may still deliver this
         return cv2.cvtColor(
             np.frombuffer(fb, np.uint8).reshape((h, w, 2)), cv2.COLOR_YUV2BGR_UYVY
         )
-    raise ValueError(f"Unsupported NDI frame: {len(fb)} bytes for {w}×{h}")
+    raise ValueError(
+        f"Unsupported NDI frame format: {n} bytes for {w}×{h} "
+        f"(expected {w*h*4} for BGRA or {w*h*2} for UYVY)"
+    )
