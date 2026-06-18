@@ -22,7 +22,7 @@ class PanController:
     def compute(self, cx: int, frame_cx: int, frame_w: int) -> float:
         """Return desired pan speed in [-max_speed, +max_speed]."""
         dx = cx - frame_cx
-        if abs(dx) <= self._pan.dead_zone_px:
+        if abs(dx) <= self._pan.stable_zone_h_px:
             return 0.0
         dx_norm = dx / (frame_w * 0.5)
         raw = max(-self._pan.max_speed, min(self._pan.max_speed, self._pan.kp * dx_norm))

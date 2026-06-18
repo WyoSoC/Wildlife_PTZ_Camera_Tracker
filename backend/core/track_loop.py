@@ -329,13 +329,16 @@ class TrackLoop:
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _draw_zones(img: np.ndarray, frame_cx: int, frame_h: int, cfg: AppConfig) -> None:
-    """Overlay pan dead-zone (cyan) line pair."""
-    dz = cfg.pan.dead_zone_px
-    for x, color in [
-        (frame_cx - dz, (50, 200, 255)),
-        (frame_cx + dz, (50, 200, 255)),
-    ]:
-        cv2.line(img, (x, 0), (x, frame_h), color, 1)
+    """Overlay the stable zone as a thin cyan rectangle centred on the frame."""
+    dz_h = cfg.pan.stable_zone_h_px
+    dz_v = cfg.pan.stable_zone_v_px
+    frame_cy = frame_h // 2
+    cv2.rectangle(
+        img,
+        (frame_cx - dz_h, frame_cy - dz_v),
+        (frame_cx + dz_h, frame_cy + dz_v),
+        (50, 200, 255), 1,
+    )
 
 
 def _draw_scan_overlay(img: np.ndarray, cfg: AppConfig) -> None:

@@ -38,11 +38,12 @@ export interface CameraStatus {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 export interface PanConfig {
-  dead_zone_px: number
-  kp:           number
-  max_speed:    number
-  min_speed:    number
-  invert:       boolean
+  stable_zone_h_px:   number
+  stable_zone_v_px: number
+  kp:             number
+  max_speed:      number
+  min_speed:      number
+  invert:         boolean
 }
 
 export interface ZoomConfig {
@@ -91,7 +92,8 @@ export interface CameraConfig {
 }
 
 export interface ConfigUpdate {
-  pan_dead_zone_px?:    number
+  pan_stable_zone_h_px?:    number
+  pan_stable_zone_v_px?:  number
   pan_kp?:              number
   pan_max_speed?:       number
   pan_min_speed?:       number

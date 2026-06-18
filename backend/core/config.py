@@ -25,11 +25,12 @@ class TrackConfig:
 
 @dataclass
 class PanConfig:
-    dead_zone_px: int   = 40    # pixels from centre — no movement inside this band
-    kp:           float = 0.9   # proportional gain (higher = more aggressive)
-    max_speed:    float = 0.8   # max PTZ pan speed (0–1)
-    min_speed:    float = 0.20  # floor to overcome motor stiction
-    invert:       bool  = False  # flip pan direction — set True in camera-specific profiles
+    stable_zone_h_px: int   = 40    # pixels from centre horizontally — no pan inside this band
+    stable_zone_v_px: int   = 30    # pixels from centre vertically — visual stable-zone box
+    kp:             float = 0.9   # proportional gain (higher = more aggressive)
+    max_speed:      float = 0.8   # max PTZ pan speed (0–1)
+    min_speed:      float = 0.20  # floor to overcome motor stiction
+    invert:         bool  = False  # flip pan direction — set True in camera-specific profiles
 
 
 @dataclass

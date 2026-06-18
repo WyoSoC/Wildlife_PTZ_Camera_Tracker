@@ -139,10 +139,16 @@ function TrackingTuning({ config, patchConfig, SaveDot }: TuningProps) {
           </summary>
           <div className="space-y-2 pl-1">
             <SliderField
-              label="Dead zone" unit="px" decimals={0} step={1}
-              min={0} max={200} value={config.pan.dead_zone_px}
-              onChange={v => patchConfig({ pan_dead_zone_px: Math.round(v) })}
-              tooltip="Pixel band around frame centre where pan stops. Widen to prevent oscillation on a nearly-centred target."
+              label="Stable zone H" unit="px" decimals={0} step={1}
+              min={0} max={200} value={config.pan.stable_zone_h_px}
+              onChange={v => patchConfig({ pan_stable_zone_h_px: Math.round(v) })}
+              tooltip="Horizontal pixel band around frame centre — no pan correction inside this width."
+            />
+            <SliderField
+              label="Stable zone V" unit="px" decimals={0} step={1}
+              min={0} max={200} value={config.pan.stable_zone_v_px}
+              onChange={v => patchConfig({ pan_stable_zone_v_px: Math.round(v) })}
+              tooltip="Vertical pixel band around frame centre — sets the height of the stable-zone box overlay."
             />
             <SliderField
               label="Gain (Kp)" step={0.05}
@@ -596,11 +602,12 @@ export function ControlTab({ ws, cameraId }: Props) {
       return {
         ...prev,
         pan: { ...prev.pan,
-          ...(update.pan_dead_zone_px !== undefined && { dead_zone_px: update.pan_dead_zone_px }),
-          ...(update.pan_kp           !== undefined && { kp:           update.pan_kp }),
-          ...(update.pan_max_speed    !== undefined && { max_speed:    update.pan_max_speed }),
-          ...(update.pan_min_speed    !== undefined && { min_speed:    update.pan_min_speed }),
-          ...(update.pan_invert       !== undefined && { invert:       update.pan_invert }),
+          ...(update.pan_stable_zone_h_px   !== undefined && { stable_zone_h_px:   update.pan_stable_zone_h_px }),
+          ...(update.pan_stable_zone_v_px !== undefined && { stable_zone_v_px: update.pan_stable_zone_v_px }),
+          ...(update.pan_kp             !== undefined && { kp:             update.pan_kp }),
+          ...(update.pan_max_speed      !== undefined && { max_speed:      update.pan_max_speed }),
+          ...(update.pan_min_speed      !== undefined && { min_speed:      update.pan_min_speed }),
+          ...(update.pan_invert         !== undefined && { invert:         update.pan_invert }),
         },
         zoom: { ...prev.zoom,
           ...(update.zoom_in_frac   !== undefined && { zoom_in_frac:  update.zoom_in_frac }),

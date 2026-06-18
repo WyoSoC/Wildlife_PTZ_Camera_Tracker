@@ -147,8 +147,9 @@ async def status(camera_id: str):
 
 class ConfigUpdate(BaseModel):
     # Pan
-    pan_dead_zone_px:  Optional[int]   = None
-    pan_kp:            Optional[float] = None
+    pan_stable_zone_h_px:   Optional[int]   = None
+    pan_stable_zone_v_px: Optional[int]   = None
+    pan_kp:             Optional[float] = None
     pan_max_speed:     Optional[float] = None
     pan_min_speed:     Optional[float] = None
     pan_invert:        Optional[bool]  = None
@@ -201,8 +202,9 @@ async def update_config(camera_id: str, update: ConfigUpdate):
         cfg.speed, cfg.command, cfg.home, cfg.area, cfg.scan,
     )
 
-    if update.pan_dead_zone_px  is not None: p.dead_zone_px      = update.pan_dead_zone_px
-    if update.pan_kp            is not None: p.kp                = update.pan_kp
+    if update.pan_stable_zone_h_px   is not None: p.stable_zone_h_px   = update.pan_stable_zone_h_px
+    if update.pan_stable_zone_v_px is not None: p.stable_zone_v_px = update.pan_stable_zone_v_px
+    if update.pan_kp             is not None: p.kp             = update.pan_kp
     if update.pan_max_speed     is not None: p.max_speed         = update.pan_max_speed
     if update.pan_min_speed     is not None: p.min_speed         = update.pan_min_speed
     if update.pan_invert        is not None: p.invert            = update.pan_invert
@@ -254,8 +256,9 @@ async def get_config(camera_id: str):
             "reolink_rtsp_url": cfg.camera.reolink_rtsp_url,
         },
         "pan": {
-            "dead_zone_px": cfg.pan.dead_zone_px,
-            "kp":           cfg.pan.kp,
+            "stable_zone_h_px":   cfg.pan.stable_zone_h_px,
+            "stable_zone_v_px": cfg.pan.stable_zone_v_px,
+            "kp":             cfg.pan.kp,
             "max_speed":    cfg.pan.max_speed,
             "min_speed":    cfg.pan.min_speed,
             "invert":       cfg.pan.invert,

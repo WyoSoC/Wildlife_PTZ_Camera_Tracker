@@ -53,10 +53,11 @@ def _extract(cfg) -> dict:
     """Pull the tracking-relevant subset of AppConfig into a plain dict."""
     return {
         "pan": {
-            "dead_zone_px": cfg.pan.dead_zone_px,
-            "kp":           cfg.pan.kp,
-            "max_speed":    cfg.pan.max_speed,
-            "min_speed":    cfg.pan.min_speed,
+            "stable_zone_h_px":   cfg.pan.stable_zone_h_px,
+            "stable_zone_v_px": cfg.pan.stable_zone_v_px,
+            "kp":             cfg.pan.kp,
+            "max_speed":      cfg.pan.max_speed,
+            "min_speed":      cfg.pan.min_speed,
         },
         "zoom": {
             "zoom_in_frac":  cfg.zoom.zoom_in_frac,
@@ -110,8 +111,9 @@ def _apply(cfg, data: dict) -> None:
     area = data.get("area",    {})
     scan = data.get("scan",    {})
 
-    if "dead_zone_px" in pan: cfg.pan.dead_zone_px = int(pan["dead_zone_px"])
-    if "kp"           in pan: cfg.pan.kp           = float(pan["kp"])
+    if "stable_zone_h_px"   in pan: cfg.pan.stable_zone_h_px   = int(pan["stable_zone_h_px"])
+    if "stable_zone_v_px" in pan: cfg.pan.stable_zone_v_px = int(pan["stable_zone_v_px"])
+    if "kp"             in pan: cfg.pan.kp             = float(pan["kp"])
     if "max_speed"    in pan: cfg.pan.max_speed    = float(pan["max_speed"])
     if "min_speed"    in pan: cfg.pan.min_speed    = float(pan["min_speed"])
 
