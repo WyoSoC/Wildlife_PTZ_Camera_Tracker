@@ -142,7 +142,7 @@ python run_server.py --port 8080           # custom port
 python run_server.py --host 127.0.0.1     # bind to localhost only
 ```
 
-`--tailscale` runs `tailscale serve https / http://localhost:9090` before starting uvicorn,
+`--tailscale` runs `tailscale serve --bg http://localhost:9090` before starting uvicorn,
 so the app is reachable at `https://<machine>.tailXXXX.ts.net` without browser HTTPS warnings.
 
 > **Always run from the project root** (the directory containing `backend/` and `frontend/`).

@@ -28,7 +28,7 @@ def main() -> None:
     parser.add_argument("--port",      default=9090, type=int, help="Bind port (default: 9090)")
     parser.add_argument("--dev",       action="store_true", help="Enable auto-reload (development)")
     parser.add_argument("--tailscale", action="store_true",
-                        help="Run 'tailscale serve https / http://localhost:PORT' before starting")
+                        help="Run 'tailscale serve --bg http://localhost:PORT' before starting")
     args = parser.parse_args()
 
     # Change to the project root so relative paths inside the app (static/,
@@ -36,7 +36,7 @@ def main() -> None:
     os.chdir(ROOT)
 
     if args.tailscale:
-        cmd = ["tailscale", "serve", "https", "/", f"http://localhost:{args.port}"]
+        cmd = ["tailscale", "serve", "--bg", f"http://localhost:{args.port}"]
         print(f"Configuring Tailscale Serve: {' '.join(cmd)}")
         result = subprocess.run(cmd)
         if result.returncode != 0:
