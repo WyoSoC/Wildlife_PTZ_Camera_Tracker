@@ -52,7 +52,7 @@ class CommandConfig:
 class RecordConfig:
     duration_sec: float = 40.0
     fps: int = 30
-    record_res: tuple[int, int] = (480, 288)
+    record_res: tuple[int, int] = (1920, 1080)
     output_dir: str = "videos/with_box"
 
 
@@ -93,14 +93,14 @@ BIRDDOG = AppConfig(
     camera=CameraConfig(source_match="birddog"),
     video=VideoConfig(process_res=(480, 288)),
     track=TrackConfig(model_path="yolo26s.pt"),
-    record=RecordConfig(duration_sec=40, fps=30, record_res=(480, 288)),
+    record=RecordConfig(duration_sec=40, fps=30, record_res=(1920, 1080)),
 )
 
 BOLIN = AppConfig(
     camera=CameraConfig(source_match="bolin"),
     video=VideoConfig(process_res=(720, 488)),
     track=TrackConfig(model_path="yolo26n.pt"),
-    record=RecordConfig(duration_sec=20, fps=20, record_res=(480, 288)),
+    record=RecordConfig(duration_sec=20, fps=20, record_res=(1280, 720)),
 )
 
 PROFILES: dict[str, AppConfig] = {
