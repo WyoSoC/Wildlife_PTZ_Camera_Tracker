@@ -185,7 +185,7 @@ class TrackLoop:
                         wfrac  = primary.width / frame_w
 
                         sp_px, sp_deg = speed_est.update(cx, cy, now)
-                        primary.draw(frame)
+                        primary.draw(frame, color=(130, 210, 170), thickness=1)
 
                         pan_desired  = pan_ctrl.compute(cx, frame_cx, frame_w)
                         zoom_desired = zoom_ctrl.compute(wfrac)

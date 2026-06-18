@@ -130,9 +130,15 @@ class Detector:
             if not t.is_confirmed():
                 continue
             lx1, ly1, lx2, ly2 = map(int, t.to_ltrb())
-            confirmed.append(
-                BBox(lx1, ly1, lx2, ly2, track_id=t.track_id, confirmed=True)
-            )
+            det_conf  = t.get_det_conf()
+            det_class = t.get_det_class()
+            confirmed.append(BBox(
+                lx1, ly1, lx2, ly2,
+                conf     = det_conf  if det_conf  is not None else 0.0,
+                cls_name = det_class if det_class is not None else "",
+                track_id = t.track_id,
+                confirmed = True,
+            ))
 
         return confirmed, raw
 
