@@ -1,6 +1,6 @@
 import type {
   CameraConfig, CameraListItem, CameraStatus, ConfigUpdate,
-  ModelInfo, NDISource, Recording, LogFile, SystemMetrics, SystemInfo,
+  ModelInfo, NDISource, Recording, LogFile, SystemMetrics, SystemInfo, NtpStatus,
 } from '../types'
 
 // ── Server configuration ───────────────────────────────────────────────────────
@@ -119,6 +119,11 @@ export const api = {
 
     download: (name: string) =>
       post<{ status: string; path: string }>(`/api/models/${encodeURIComponent(name)}/download`),
+
+    addCustom: (repo_url: string, filename: string, name?: string) =>
+      post<{ status: string; name: string; path: string }>('/api/models/custom', {
+        repo_url, filename, name,
+      }),
   },
 
   webrtc: {
@@ -160,5 +165,11 @@ export const api = {
 
     info: () =>
       get<SystemInfo>('/api/system/info'),
+
+    ntpStatus: () =>
+      get<NtpStatus>('/api/system/ntp-status'),
+
+    ntpSync: () =>
+      post<NtpStatus>('/api/system/ntp-sync'),
   },
 }

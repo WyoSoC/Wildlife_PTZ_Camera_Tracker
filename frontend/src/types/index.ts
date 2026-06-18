@@ -160,6 +160,15 @@ export interface LogFile {
   modified: string
 }
 
+// ── NTP time sync ─────────────────────────────────────────────────────────────
+
+export interface NtpStatus {
+  offset_sec: number
+  last_sync:  string | null
+  server:     string
+  synced:     boolean
+}
+
 // ── WebSocket hook ────────────────────────────────────────────────────────────
 
 export interface WebSocketHook {

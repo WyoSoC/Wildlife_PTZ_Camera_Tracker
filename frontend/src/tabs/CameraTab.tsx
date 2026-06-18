@@ -1,13 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, Wifi, Camera, CheckCircle2, Play, Square, Plus, Trash2, Download, Loader } from 'lucide-react'
+import {
+  RefreshCw, Wifi, Camera, CheckCircle2, Play, Square, Plus, Trash2,
+  Download, Loader, ExternalLink, Clock, AlertCircle,
+} from 'lucide-react'
 import { api } from '../api/client'
 import { useServer } from '../context/ServerContext'
-import type { CameraConfig, CameraStatus, ModelInfo, NDISource } from '../types'
+import type { CameraConfig, CameraStatus, ModelInfo, NDISource, NtpStatus } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { StatusDot } from '../components/ui/Badge'
 
-// ── Shared model card renderer ────────────────────────────────────────────────
+// ── Model card helpers ────────────────────────────────────────────────────────
+
+const HF_BASE = 'https://huggingface.co/'
+
+function HFLink({ repoId }: { repoId: string | null }) {
+  if (!repoId) return null
+  return (
+    <a
+      href={HF_BASE + repoId}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      className="shrink-0 text-orange-400/60 hover:text-orange-400 transition-colors"
+      title={`View on HuggingFace: ${repoId}`}
+    >
+      <ExternalLink size={11} />
+    </a>
+  )
+}
 
 interface ModelSectionProps {
   models:      ModelInfo[]
@@ -33,7 +54,10 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
             <div key={m.name}
               className="p-2.5 rounded-lg border border-surface-border bg-surface-raised text-xs space-y-1.5"
             >
-              <p className="font-medium text-white/60 truncate">{m.description}</p>
+              <div className="flex items-start justify-between gap-1">
+                <p className="font-medium text-white/60 truncate">{m.description}</p>
+                <HFLink repoId={m.repo_id} />
+              </div>
               {m.species.length > 0 && (
                 <p className="text-white/30 truncate">
                   {m.species.slice(0, speciesLimit).join(', ')}
@@ -68,7 +92,10 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
           >
             <div className="flex items-start justify-between gap-1">
               <p className="font-medium text-white truncate">{m.description}</p>
-              {active && <CheckCircle2 size={12} className="shrink-0 text-green-400 mt-0.5" />}
+              <div className="flex items-center gap-1 shrink-0">
+                <HFLink repoId={m.repo_id} />
+                {active && <CheckCircle2 size={12} className="text-green-400 mt-0.5" />}
+              </div>
             </div>
             {m.species.length > 0 && (
               <p className="text-white/35 mt-0.5 truncate">
@@ -82,6 +109,165 @@ function ModelSection({ models, activePath, downloading, dlError, onSwitch, onDo
     </div>
   )
 }
+
+// ── Custom model form ─────────────────────────────────────────────────────────
+
+interface CustomModelFormProps {
+  onAdded: () => void
+}
+
+function CustomModelForm({ onAdded }: CustomModelFormProps) {
+  const [repoUrl,   setRepoUrl]   = useState('')
+  const [filename,  setFilename]  = useState('best.pt')
+  const [localName, setLocalName] = useState('')
+  const [busy,      setBusy]      = useState(false)
+  const [error,     setError]     = useState('')
+  const [done,      setDone]      = useState('')
+
+  const submit = useCallback(async () => {
+    if (!repoUrl.trim()) return
+    setBusy(true); setError(''); setDone('')
+    try {
+      const res = await api.models.addCustom(
+        repoUrl.trim(),
+        filename.trim() || 'best.pt',
+        localName.trim() || undefined,
+      )
+      setDone(`Saved as "${res.name}"`)
+      setRepoUrl(''); setLocalName('')
+      onAdded()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }, [repoUrl, filename, localName, onAdded])
+
+  return (
+    <Card title="Add Custom HuggingFace Model">
+      <div className="space-y-2 text-xs">
+        <div>
+          <label className="text-white/40 block mb-1">HuggingFace URL or owner/repo</label>
+          <input
+            type="text"
+            placeholder="https://huggingface.co/owner/repo  or  owner/repo"
+            value={repoUrl}
+            onChange={e => setRepoUrl(e.target.value)}
+            className="w-full bg-surface-base border border-surface-border rounded px-2 py-1.5
+                       text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-white/40 block mb-1">Filename in repo</label>
+            <input
+              type="text"
+              placeholder="best.pt"
+              value={filename}
+              onChange={e => setFilename(e.target.value)}
+              className="w-full bg-surface-base border border-surface-border rounded px-2 py-1.5
+                         text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-white/40 block mb-1">Local name (optional)</label>
+            <input
+              type="text"
+              placeholder="my_model"
+              value={localName}
+              onChange={e => setLocalName(e.target.value)}
+              className="w-full bg-surface-base border border-surface-border rounded px-2 py-1.5
+                         text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+        {error && (
+          <p className="flex items-center gap-1 text-red-400/80 text-[10px]">
+            <AlertCircle size={10} /> {error}
+          </p>
+        )}
+        {done && <p className="text-green-400/80 text-[10px]">{done}</p>}
+        <div className="flex items-center gap-3">
+          <Button size="sm" disabled={!repoUrl.trim() || busy} onClick={submit}>
+            {busy ? <><Loader size={11} className="animate-spin" /> Downloading…</> : <><Download size={11} /> Download</>}
+          </Button>
+          <a
+            href="https://github.com/gojian/Wildlife_PTZ_Camera_Tracker/blob/main/docs/custom_models.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-white/30 hover:text-white/60 transition-colors"
+          >
+            <ExternalLink size={10} /> How to prepare a model
+          </a>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// ── NTP Time Sync card ────────────────────────────────────────────────────────
+
+function TimeSyncCard() {
+  const [ntp,   setNtp]   = useState<NtpStatus | null>(null)
+  const [busy,  setBusy]  = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.system.ntpStatus().then(setNtp).catch(() => {})
+  }, [])
+
+  const sync = useCallback(async () => {
+    setBusy(true); setError('')
+    try {
+      const res = await api.system.ntpSync()
+      setNtp(res)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Sync failed')
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  return (
+    <Card title="Time Sync (NTP)">
+      <div className="space-y-2 text-xs">
+        {ntp ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Clock size={11} className={ntp.synced ? 'text-green-400' : 'text-white/30'} />
+              <span className={ntp.synced ? 'text-green-300' : 'text-white/40'}>
+                {ntp.synced ? 'Synced' : 'Not synced'}
+              </span>
+            </div>
+            {ntp.synced && (
+              <>
+                <div className="text-white/50">
+                  Offset: <span className="text-white/80 font-mono">
+                    {ntp.offset_sec >= 0 ? '+' : ''}{ntp.offset_sec.toFixed(3)} s
+                  </span>
+                </div>
+                <div className="text-white/40 truncate">Server: {ntp.server}</div>
+                {ntp.last_sync && (
+                  <div className="text-white/30 text-[10px]">
+                    Last: {new Date(ntp.last_sync).toLocaleString()}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <p className="text-white/30">Loading…</p>
+        )}
+        {error && <p className="text-red-400/70 text-[10px]">{error}</p>}
+        <Button size="sm" className="w-full" loading={busy} onClick={sync}>
+          <RefreshCw size={11} /> Sync Now
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+// ── Main tab ──────────────────────────────────────────────────────────────────
 
 export function CameraTab() {
   const { cameras, activeCameraId, setActiveCameraId, refreshCameras, server } = useServer()
@@ -97,13 +283,17 @@ export function CameraTab() {
   const [downloading, setDownloading] = useState<Set<string>>(new Set())
   const [dlError,     setDlError]     = useState<Record<string, string>>({})
 
+  const refreshModels = useCallback(() =>
+    api.models.list().then(r => setModels(r.models)).catch(console.error)
+  , [])
+
   // Load config, status, models when active camera changes
   useEffect(() => {
     if (!cameraId) return
     api.cameras.getConfig(cameraId).then(setConfig).catch(console.error)
     api.cameras.status(cameraId).then(setCamStatus).catch(console.error)
-    api.models.list().then(r => setModels(r.models)).catch(console.error)
-  }, [cameraId])
+    refreshModels()
+  }, [cameraId, refreshModels])
 
   const scan = useCallback(async () => {
     setScanning(true)
@@ -189,15 +379,14 @@ export function CameraTab() {
     setDlError(prev => { const n = { ...prev }; delete n[name]; return n })
     try {
       await api.models.download(name)
-      const { models: refreshed } = await api.models.list()
-      setModels(refreshed)
+      await refreshModels()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setDlError(prev => ({ ...prev, [name]: msg }))
     } finally {
       setDownloading(prev => { const n = new Set(prev); n.delete(name); return n })
     }
-  }, [])
+  }, [refreshModels])
 
   return (
     <div className="h-full overflow-auto p-4">
@@ -332,6 +521,9 @@ export function CameraTab() {
               ) : null}
             </div>
           )}
+
+          {/* Time Sync */}
+          <TimeSyncCard />
         </div>
 
         {/* ── Right panel: config ── */}
@@ -453,6 +645,9 @@ export function CameraTab() {
                   })}
                 </div>
               </details>
+
+              {/* Add custom HuggingFace model */}
+              <CustomModelForm onAdded={refreshModels} />
 
             </div>
           ) : (

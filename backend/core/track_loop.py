@@ -30,6 +30,7 @@ from .ndi_io import NDIReceiver
 from .ptz_cam import NDIPTZCamera
 from .recorder import VideoRecorder
 from .session import Session, get_session
+from . import time_sync
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,7 @@ class TrackLoop:
                 # ── Draw zone markers + HUD ───────────────────────────────────
                 if session.mode == 'auto_track':
                     _draw_zones(frame, frame_cx, frame_h, cfg)
-                _ts = datetime.fromtimestamp(now)
+                _ts = datetime.fromtimestamp(now + time_sync.get_offset())
                 draw_hud(
                     frame,
                     rec_on    = recorder.is_active,

@@ -1,13 +1,16 @@
 """
 System performance metrics — CPU, memory, GPU (NVIDIA), power.
+Also exposes NTP time-sync control.
 """
 from __future__ import annotations
+import asyncio
 import logging
 import platform
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from ..core.device import select_device, device_info
+from ..core import time_sync
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/system", tags=["system"])
@@ -87,3 +90,22 @@ async def get_info():
         "psutil":        _PSUTIL,
         "nvml":          _NVML,
     }
+
+
+# ── NTP time sync ──────────────────────────────────────────────────────────────
+
+@router.get("/ntp-status")
+async def ntp_status():
+    """Return the current NTP offset and last-sync metadata."""
+    return time_sync.status()
+
+
+@router.post("/ntp-sync")
+async def ntp_sync():
+    """Query NTP servers and update the UTC offset used for video timestamps."""
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(None, time_sync.sync)
+        return result
+    except Exception as exc:
+        raise HTTPException(503, detail=str(exc))
