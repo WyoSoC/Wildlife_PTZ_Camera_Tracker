@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { ServerProvider, useServer } from './context/ServerContext'
 import { ConnectScreen } from './components/ConnectScreen'
 import { useWebSocket } from './hooks/useWebSocket'
@@ -18,7 +19,7 @@ const TABS: { id: TabId; label: string }[] = [
 ]
 
 function AppShell() {
-  const { server, probing, cameras, activeCameraId, setActiveCameraId } = useServer()
+  const { server, probing, cameras, activeCameraId, setActiveCameraId, disconnect } = useServer()
   const [activeTab, setActiveTab] = useState<TabId>('camera')
   const ws = useWebSocket(activeCameraId)
 
@@ -72,14 +73,26 @@ function AppShell() {
           </div>
         )}
 
-        {ws.telemetry?.rec_active && (
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-xs font-medium text-red-400">
-              REC {ws.telemetry.rec_elapsed.toFixed(0)}s / {ws.telemetry.rec_total.toFixed(0)}s
-            </span>
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {ws.telemetry?.rec_active && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs font-medium text-red-400">
+                REC {ws.telemetry.rec_elapsed.toFixed(0)}s / {ws.telemetry.rec_total.toFixed(0)}s
+              </span>
+            </div>
+          )}
+          <button
+            onClick={disconnect}
+            title={`Switch server (currently: ${server?.url})`}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-white/35
+                       hover:text-white/70 hover:bg-surface-raised border border-transparent
+                       hover:border-surface-border transition-colors"
+          >
+            <LogOut size={12} />
+            {server?.name ?? 'Switch Server'}
+          </button>
+        </div>
       </header>
 
       {/* ── Tab bar ── */}

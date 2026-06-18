@@ -212,8 +212,13 @@ function TimeSyncCard() {
   const [busy,  setBusy]  = useState(false)
   const [error, setError] = useState('')
 
+  // Auto-sync on mount; fall back to status-only if sync fails
   useEffect(() => {
-    api.system.ntpStatus().then(setNtp).catch(() => {})
+    setBusy(true)
+    api.system.ntpSync()
+      .then(setNtp)
+      .catch(() => api.system.ntpStatus().then(setNtp).catch(() => {}))
+      .finally(() => setBusy(false))
   }, [])
 
   const sync = useCallback(async () => {
