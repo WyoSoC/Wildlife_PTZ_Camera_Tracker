@@ -74,6 +74,7 @@ _GENERAL_CATALOG: list[ModelInfo] = [
         species=["animal (generic)", "person", "vehicle"],
         source="megadetector",
         auto_download=True,
+        repo_id="agentmorris/megadetector",
         download_url="https://github.com/agentmorris/MegaDetector/releases/download/v1000.0/md_v1000.0.0-larch.pt",
     ),
     ModelInfo(
@@ -85,6 +86,7 @@ _GENERAL_CATALOG: list[ModelInfo] = [
         species=["animal (generic)", "person", "vehicle"],
         source="megadetector",
         auto_download=True,
+        repo_id="agentmorris/megadetector",
         download_url="https://github.com/agentmorris/MegaDetector/releases/download/v1000.0/md_v1000.0.0-sorrel.pt",
     ),
 ]
