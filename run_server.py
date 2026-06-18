@@ -38,7 +38,14 @@ def main() -> None:
     if args.tailscale:
         cmd = ["tailscale", "serve", "--bg", f"http://localhost:{args.port}"]
         print(f"Configuring Tailscale Serve: {' '.join(cmd)}")
-        result = subprocess.run(cmd)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0 and "Access denied" in (result.stdout + result.stderr):
+            print("Tailscale serve requires operator permission — running: sudo tailscale set --operator=$USER")
+            fix = subprocess.run(["sudo", "tailscale", "set", f"--operator={os.environ.get('USER', 'root')}"])
+            if fix.returncode == 0:
+                result = subprocess.run(cmd)
+            else:
+                result = fix
         if result.returncode != 0:
             print("Warning: 'tailscale serve' failed — continuing without it.", file=sys.stderr)
 
