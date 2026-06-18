@@ -1,6 +1,6 @@
 import type {
   CameraConfig, CameraListItem, CameraStatus, ConfigUpdate,
-  ModelInfo, NDISource, Recording, LogFile, SystemMetrics, SystemInfo, NtpStatus,
+  ModelInfo, NDISource, PtzPosition, Recording, LogFile, SystemMetrics, SystemInfo, NtpStatus,
   UserProfile,
 } from '../types'
 
@@ -117,6 +117,9 @@ export const api = {
       post<{ status: string; pan: number; tilt: number; zoom: number }>(
         `/api/cameras/${cameraId}/home/go`,
       ),
+
+    getPosition: (cameraId: string) =>
+      get<PtzPosition>(`/api/cameras/${cameraId}/position`),
   },
 
   models: {

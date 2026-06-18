@@ -51,6 +51,11 @@ class NDIPTZCamera:
     def autofocus(self) -> None:
         self._send('<ntk_ptz_focus_auto autofocus="on"/>')
 
+    def query_position(self) -> None:
+        """Ask camera for its current pan/tilt/zoom. Response arrives as NDI metadata."""
+        self._send('<ntk_ptz_pan_tilt_zoom_query/>')
+        self._send('<ndi_ptz_pan_tilt_zoom_query/>')
+
     # ── internal ───────────────────────────────────────────────────────────────
 
     def _send(self, xml: str) -> None:

@@ -13,7 +13,7 @@ import { Card } from '../components/ui/Card'
 import { SliderField, ToggleField } from '../components/ui/SliderField'
 import { Badge, StatusDot } from '../components/ui/Badge'
 import { api } from '../api/client'
-import type { CameraConfig, CameraStatus, ConfigUpdate, UserProfile, WebSocketHook } from '../types'
+import type { CameraConfig, CameraStatus, ConfigUpdate, PtzPosition, UserProfile, WebSocketHook } from '../types'
 
 const GAMEPAD_SEND_HZ     = 20
 const GAMEPAD_INTERVAL_MS = 1000 / GAMEPAD_SEND_HZ
@@ -217,13 +217,140 @@ function TrackingTuning({ config, patchConfig, SaveDot }: TuningProps) {
   )
 }
 
+// ── Corner capture (define tracking area by physical camera positions) ─────────
+
+type CornerKey = 'tl' | 'tr' | 'bl' | 'br'
+type Corners = Record<CornerKey, PtzPosition | null>
+
+const CORNERS: { key: CornerKey; icon: string; label: string }[] = [
+  { key: 'tl', icon: '↖', label: 'Top-Left'    },
+  { key: 'tr', icon: '↗', label: 'Top-Right'   },
+  { key: 'bl', icon: '↙', label: 'Btm-Left'    },
+  { key: 'br', icon: '↘', label: 'Btm-Right'   },
+]
+
+function CornerCapture({
+  cameraId,
+  running,
+  patchConfig,
+}: {
+  cameraId: string | null
+  running: boolean
+  patchConfig: (u: ConfigUpdate) => void
+}) {
+  const [corners,   setCorners]   = useState<Corners>({ tl: null, tr: null, bl: null, br: null })
+  const [capturing, setCapturing] = useState<CornerKey | null>(null)
+  const [error,     setError]     = useState<string | null>(null)
+
+  const capture = async (key: CornerKey) => {
+    if (!cameraId || !running || capturing) return
+    setCapturing(key)
+    setError(null)
+    try {
+      const pos = await api.cameras.getPosition(cameraId)
+      setCorners(prev => ({ ...prev, [key]: pos }))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg.includes('504')
+        ? 'No position response — camera may not support feedback over NDI'
+        : msg)
+    } finally {
+      setCapturing(null)
+    }
+  }
+
+  const captured = Object.values(corners).filter(Boolean) as PtzPosition[]
+
+  const applyCorners = () => {
+    if (captured.length < 2) return
+    const pans  = captured.map(c => c.pan)
+    const tilts = captured.map(c => c.tilt)
+    patchConfig({
+      area_enabled:  true,
+      area_pan_min:  Math.min(...pans),
+      area_pan_max:  Math.max(...pans),
+      area_tilt_min: Math.min(...tilts),
+      area_tilt_max: Math.max(...tilts),
+    })
+  }
+
+  return (
+    <div className="pt-3 border-t border-surface-border space-y-2">
+      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+        <MapPin size={10} /> Define by camera
+      </p>
+
+      {!running ? (
+        <p className="text-[10px] text-white/30 leading-snug">
+          Start the camera first to capture corner positions.
+        </p>
+      ) : (
+        <>
+          <p className="text-[10px] text-white/30 leading-snug">
+            Move the camera to each corner of the tracking area, then click to capture its position.
+            Apply uses all captured corners to set the area bounds.
+          </p>
+
+          <div className="grid grid-cols-2 gap-1.5">
+            {CORNERS.map(({ key, icon, label }) => {
+              const pos  = corners[key]
+              const busy = capturing === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => capture(key)}
+                  disabled={!running || !!capturing}
+                  className={`flex flex-col items-start rounded border px-2 py-1.5 text-left
+                    transition-colors select-none
+                    ${pos
+                      ? 'border-blue-700/60 bg-blue-900/20 text-blue-300'
+                      : 'border-surface-border bg-surface-raised text-white/50'}
+                    hover:border-blue-600/60 hover:bg-blue-900/30
+                    disabled:opacity-40 disabled:cursor-wait`}
+                >
+                  <span className="text-[10px] font-semibold">{icon} {label}</span>
+                  {busy ? (
+                    <span className="text-[9px] text-white/40 font-mono">querying…</span>
+                  ) : pos ? (
+                    <span className="text-[9px] text-blue-300/70 font-mono">
+                      {pos.pan.toFixed(3)} / {pos.tilt.toFixed(3)}
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-white/25">click to capture</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {error && (
+            <p className="text-[10px] text-red-400 leading-snug">{error}</p>
+          )}
+
+          <Button
+            size="sm" className="w-full"
+            disabled={captured.length < 2}
+            onClick={applyCorners}
+          >
+            <CheckCircle2 size={11} />
+            {captured.length >= 2
+              ? `Apply ${captured.length} corners → enable area`
+              : 'Capture at least 2 corners'}
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Behaviour (home / area / scan) ────────────────────────────────────────────
 
 interface BehaviourProps extends TuningProps {
   cameraId: string | null
+  running:  boolean
 }
 
-function BehaviourPanel({ config, patchConfig, SaveDot, cameraId }: BehaviourProps) {
+function BehaviourPanel({ config, patchConfig, SaveDot, cameraId, running }: BehaviourProps) {
   const [goingHome, setGoingHome] = useState(false)
 
   const handleGoHome = useCallback(async () => {
@@ -322,6 +449,7 @@ function BehaviourPanel({ config, patchConfig, SaveDot, cameraId }: BehaviourPro
               onChange={v => patchConfig({ area_scan_zoom: v })}
               tooltip="Zoom level held while scanning. Wide angle (low value) gives wider field of view."
             />
+            <CornerCapture cameraId={cameraId} running={running} patchConfig={patchConfig} />
           </div>
         </details>
 
@@ -914,7 +1042,8 @@ export function ControlTab({ ws, cameraId }: Props) {
           {config && (
             <>
               <TrackingTuning config={config} patchConfig={patchConfig} SaveDot={SaveDot} />
-              <BehaviourPanel config={config} patchConfig={patchConfig} SaveDot={SaveDot} cameraId={cameraId} />
+              <BehaviourPanel config={config} patchConfig={patchConfig} SaveDot={SaveDot}
+                cameraId={cameraId} running={camStatus?.running ?? false} />
             </>
           )}
         </div>

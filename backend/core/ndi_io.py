@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -68,6 +69,7 @@ class NDIReceiver:
         self.source_match = source_match
         self.timeout_ms = timeout_ms
         self.source_name: str = ""
+        self.last_position: Optional[dict] = None   # {"pan", "tilt", "zoom", "ts"}
         self._finder = None
         self._recv = None
 
@@ -125,9 +127,14 @@ class NDIReceiver:
 
         if t == ndi.FRAME_TYPE_METADATA and m is not None:
             try:
-                ndi.recv_free_metadata(self._recv, m)
+                self._parse_position_metadata(m)
             except Exception:
                 pass
+            finally:
+                try:
+                    ndi.recv_free_metadata(self._recv, m)
+                except Exception:
+                    pass
 
         if t != ndi.FRAME_TYPE_VIDEO:
             return None, now
@@ -156,6 +163,26 @@ class NDIReceiver:
                     )
 
         return bgr, now
+
+    def _parse_position_metadata(self, m) -> None:
+        """Parse a camera-sent PTZ position metadata frame into last_position."""
+        try:
+            raw: str = m.data if isinstance(m.data, str) else m.data.decode("utf-8", errors="replace")
+        except AttributeError:
+            raw = bytes(m.p_data[: m.length]).decode("utf-8", errors="replace")
+        root = ET.fromstring(raw)
+        _POS_TAGS = {"ntk_ptz_pan_tilt_zoom", "ndi_ptz_pan_tilt_zoom"}
+        el = root if root.tag in _POS_TAGS else next(
+            (root.find(f".//{tag}") for tag in _POS_TAGS if root.find(f".//{tag}") is not None),
+            None,
+        )
+        if el is not None and "pan" in el.attrib:
+            self.last_position = {
+                "pan":  float(el.get("pan",  0.0)),
+                "tilt": float(el.get("tilt", 0.0)),
+                "zoom": float(el.get("zoom", 0.5)),
+                "ts":   time.time(),
+            }
 
     @property
     def handle(self):

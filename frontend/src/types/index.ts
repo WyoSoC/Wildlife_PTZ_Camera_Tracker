@@ -218,6 +218,14 @@ export interface NtpStatus {
   synced:     boolean
 }
 
+// ── PTZ position ──────────────────────────────────────────────────────────────
+
+export interface PtzPosition {
+  pan:  number
+  tilt: number
+  zoom: number
+}
+
 // ── User-saved tracking profiles ─────────────────────────────────────────────
 
 export interface UserProfile {

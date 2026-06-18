@@ -21,6 +21,7 @@ Route summary
 """
 from __future__ import annotations
 import asyncio
+import time
 from copy import deepcopy
 from typing import Optional
 
@@ -310,6 +311,44 @@ async def get_config(camera_id: str):
             "dwell_sec":  cfg.scan.dwell_sec,
         },
     }
+
+
+# ── PTZ position query ────────────────────────────────────────────────────────
+
+@router.get("/{camera_id}/position")
+async def get_position(camera_id: str):
+    """
+    Query the camera's current absolute pan/tilt/zoom position.
+
+    Sends an NDI metadata query and waits up to 500 ms for the camera to
+    respond.  The response is parsed by NDIReceiver inside the running tracking
+    loop — so the loop must be active (camera started) for this to work.
+
+    Returns: {"pan": float, "tilt": float, "zoom": float}  (all in NDI space)
+    """
+    entry = _get_entry(camera_id)
+    if not entry.is_running():
+        raise HTTPException(400, "Camera must be running to query position — start it first")
+
+    ptz      = entry.session._ptz
+    receiver = entry.session._receiver
+    if ptz is None or receiver is None:
+        raise HTTPException(400, "Camera is not connected")
+
+    query_time = time.time()
+    ptz.query_position()
+
+    for _ in range(25):   # 25 × 20 ms = 500 ms
+        await asyncio.sleep(0.02)
+        pos = getattr(receiver, "last_position", None)
+        if pos and pos.get("ts", 0.0) > query_time:
+            return {"pan": pos["pan"], "tilt": pos["tilt"], "zoom": pos["zoom"]}
+
+    raise HTTPException(
+        504,
+        "Camera did not respond to position query within 500 ms. "
+        "The camera may not support position feedback over NDI.",
+    )
 
 
 # ── home position ──────────────────────────────────────────────────────────────
