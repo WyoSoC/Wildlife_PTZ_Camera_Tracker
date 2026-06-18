@@ -100,7 +100,18 @@ class Detector:
                         info["vram_gb"], info.get("cuda_version", "?"),
                         info.get("sm_capability", "?"))
 
-        self._tracker = DeepSort(max_age=track_cfg.tracker_max_age)
+        # Warm-up: trigger CUDA JIT/kernel compilation on a dummy frame so the
+        # first real camera frame doesn't pay the one-time compile cost.
+        # half= must be passed here too — ultralytics predictor resets the model
+        # dtype during its own setup step, so model.half() alone is not reliable.
+        _dummy = np.zeros((64, 64, 3), dtype=np.uint8)
+        self._model(_dummy, verbose=False, half=self._half)
+        logger.info("GPU warm-up complete")
+
+        self._tracker = DeepSort(
+            max_age=track_cfg.tracker_max_age,
+            half=self._half,          # FP16 re-ID embedder when on CUDA
+        )
         self._classes = track_cfg.detect_classes
 
     @property
