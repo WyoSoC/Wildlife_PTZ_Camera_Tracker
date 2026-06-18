@@ -135,11 +135,14 @@ class NDIReceiver:
         bgr = _decode_frame(v)
         ndi.recv_free_video_v2(self._recv, v)
 
-        # Detect the NDI "Video decoder not found" error overlay — it renders as
-        # a mostly-black frame with white text. Check once on first frame and
-        # then periodically so we don't spam the log.
         if bgr is not None:
             self._error_frame_count = getattr(self, "_error_frame_count", 0) + 1
+            if self._error_frame_count == 1:
+                logger.info(
+                    "NDI source '%s': %dx%d  stride=%d  FourCC=0x%08X",
+                    self.source_name, v.xres, v.yres,
+                    v.line_stride_in_bytes, v.FourCC,
+                )
             if self._error_frame_count == 1 or self._error_frame_count % 300 == 0:
                 mean = float(np.mean(bgr))
                 if mean < 8.0:  # almost entirely black — NDI error frame
@@ -172,20 +175,30 @@ class NDIReceiver:
 # ── internal helpers ───────────────────────────────────────────────────────────
 
 def _decode_frame(v_frame) -> np.ndarray:
-    h, w = v_frame.yres, v_frame.xres
-    fb    = bytes(v_frame.data)
-    n     = len(fb)
-    if n == w * h * 4:
-        # BGRA (expected — we requested RECV_COLOR_FORMAT_BGRX_BGRA)
-        return cv2.cvtColor(
-            np.frombuffer(fb, np.uint8).reshape((h, w, 4)), cv2.COLOR_BGRA2BGR
+    h, w   = v_frame.yres, v_frame.xres
+    stride = v_frame.line_stride_in_bytes  # bytes per row including any padding
+    raw    = np.frombuffer(bytes(v_frame.data), np.uint8)
+    n      = len(raw)
+
+    # BGRA / BGRX — 4 bytes per pixel (requested via RECV_COLOR_FORMAT_BGRX_BGRA)
+    bpp4_stride = stride if stride > 0 else w * 4
+    if n >= bpp4_stride * h and bpp4_stride >= w * 4:
+        # Use numpy stride tricks to skip row-padding without copying rows one by one
+        arr = np.lib.stride_tricks.as_strided(
+            raw, shape=(h, w, 4), strides=(bpp4_stride, 4, 1)
         )
-    if n == w * h * 2:
-        # UYVY — some SDK versions may still deliver this
-        return cv2.cvtColor(
-            np.frombuffer(fb, np.uint8).reshape((h, w, 2)), cv2.COLOR_YUV2BGR_UYVY
+        return cv2.cvtColor(np.ascontiguousarray(arr), cv2.COLOR_BGRA2BGR)
+
+    # UYVY — 2 bytes per pixel (fallback; some SDK paths deliver this)
+    bpp2_stride = stride if stride > 0 else w * 2
+    if n >= bpp2_stride * h and bpp2_stride >= w * 2:
+        arr = np.lib.stride_tricks.as_strided(
+            raw, shape=(h, w, 2), strides=(bpp2_stride, 2, 1)
         )
+        return cv2.cvtColor(np.ascontiguousarray(arr), cv2.COLOR_YUV2BGR_UYVY)
+
     raise ValueError(
-        f"Unsupported NDI frame format: {n} bytes for {w}×{h} "
-        f"(expected {w*h*4} for BGRA or {w*h*2} for UYVY)"
+        f"Unsupported NDI frame: {n} bytes for {w}×{h} "
+        f"stride={stride} "
+        f"(expected ≥{w*4*h} for BGRA or ≥{w*2*h} for UYVY)"
     )
