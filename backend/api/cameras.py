@@ -335,10 +335,18 @@ async def get_position(camera_id: str):
     if ptz is None or receiver is None:
         raise HTTPException(400, "Camera is not connected")
 
+    now = time.time()
+
+    # Some cameras stream position continuously — use it if it's fresh (< 2 s old)
+    pos = getattr(receiver, "last_position", None)
+    if pos and pos.get("ts", 0.0) > now - 2.0:
+        return {"pan": pos["pan"], "tilt": pos["tilt"], "zoom": pos["zoom"]}
+
+    # Otherwise send an explicit query and wait up to 1 s for the response
     query_time = time.time()
     ptz.query_position()
 
-    for _ in range(25):   # 25 × 20 ms = 500 ms
+    for _ in range(50):   # 50 × 20 ms = 1 s
         await asyncio.sleep(0.02)
         pos = getattr(receiver, "last_position", None)
         if pos and pos.get("ts", 0.0) > query_time:
@@ -346,8 +354,9 @@ async def get_position(camera_id: str):
 
     raise HTTPException(
         504,
-        "Camera did not respond to position query within 500 ms. "
-        "The camera may not support position feedback over NDI.",
+        "Camera did not respond to position query within 1 s. "
+        "The camera may not support position feedback over NDI. "
+        "Check backend logs (DEBUG level) to see what metadata is arriving.",
     )
 
 

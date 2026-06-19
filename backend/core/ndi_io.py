@@ -128,8 +128,8 @@ class NDIReceiver:
         if t == ndi.FRAME_TYPE_METADATA and m is not None:
             try:
                 self._parse_position_metadata(m)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Metadata parse error: %s", exc)
             finally:
                 try:
                     ndi.recv_free_metadata(self._recv, m)
@@ -166,10 +166,31 @@ class NDIReceiver:
 
     def _parse_position_metadata(self, m) -> None:
         """Parse a camera-sent PTZ position metadata frame into last_position."""
-        try:
-            raw: str = m.data if isinstance(m.data, str) else m.data.decode("utf-8", errors="replace")
-        except AttributeError:
+        # Extract raw XML — NDIlib binding versions expose frame data differently
+        raw: Optional[str] = None
+        data = getattr(m, "data", None)
+        if data is not None:
+            if isinstance(data, str):
+                raw = data
+            elif isinstance(data, (bytes, bytearray)):
+                raw = data.decode("utf-8", errors="replace")
+            else:
+                # ctypes array or similar — try length-bounded bytes()
+                try:
+                    length = getattr(m, "length", None) or len(data)
+                    raw = bytes(data[:length]).decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+        if raw is None:
+            # Older SDK: p_data + length
             raw = bytes(m.p_data[: m.length]).decode("utf-8", errors="replace")
+
+        raw = raw.strip()
+        if not raw:
+            return
+
+        logger.debug("NDI metadata recv: %s", raw[:300])
+
         root = ET.fromstring(raw)
         _POS_TAGS = {"ntk_ptz_pan_tilt_zoom", "ndi_ptz_pan_tilt_zoom"}
         el = root if root.tag in _POS_TAGS else next(
@@ -183,6 +204,10 @@ class NDIReceiver:
                 "zoom": float(el.get("zoom", 0.5)),
                 "ts":   time.time(),
             }
+            logger.debug(
+                "PTZ position: pan=%.3f tilt=%.3f zoom=%.3f",
+                self.last_position["pan"], self.last_position["tilt"], self.last_position["zoom"],
+            )
 
     @property
     def handle(self):
