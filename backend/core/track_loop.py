@@ -98,7 +98,15 @@ class TrackLoop:
         proc_w, proc_h = cfg.video.process_res
 
         # ── Build pipeline ────────────────────────────────────────────────────
-        detector  = Detector(cfg.track, cfg.device)
+        try:
+            detector = Detector(cfg.track, cfg.device)
+        except Exception:
+            logger.exception(
+                "Detector init failed (model=%s) — check model path and CUDA compatibility",
+                cfg.track.model_path,
+            )
+            session.connected = False
+            return
         info = device_info(detector.device)
         session.device      = str(detector.device)
         session.device_name = info.get("device_name", str(detector.device))

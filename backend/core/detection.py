@@ -110,7 +110,8 @@ class Detector:
 
         self._tracker = DeepSort(
             max_age=track_cfg.tracker_max_age,
-            half=self._half,          # FP16 re-ID embedder when on CUDA
+            half=self._half,
+            embedder_gpu=self._device.type != "cpu",
         )
         self._classes = track_cfg.detect_classes
 

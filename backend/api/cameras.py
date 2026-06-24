@@ -193,6 +193,9 @@ class ConfigUpdate(BaseModel):
     scan_cols:         Optional[int]   = None
     scan_travel_sec:   Optional[float] = None
     scan_dwell_sec:    Optional[float] = None
+    # Device
+    device:            Optional[str]   = None
+    half:              Optional[bool]  = None
 
 
 @router.put("/{camera_id}/config")
@@ -244,6 +247,9 @@ async def update_config(camera_id: str, update: ConfigUpdate):
     if update.scan_cols       is not None: sc.cols       = update.scan_cols
     if update.scan_travel_sec is not None: sc.travel_sec = update.scan_travel_sec
     if update.scan_dwell_sec  is not None: sc.dwell_sec  = update.scan_dwell_sec
+    # Device
+    if update.device is not None: cfg.device.device = update.device
+    if update.half   is not None: cfg.device.half   = update.half
 
     return {"status": "ok"}
 

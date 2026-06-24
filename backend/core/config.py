@@ -1,6 +1,17 @@
 from __future__ import annotations
+import os
 from dataclasses import dataclass, field
 from typing import Optional
+
+# Resolve the project-level models/ directory relative to this file.
+# backend/core/config.py → backend/core/ → backend/ → project root → models/
+_MODELS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "models",
+)
+
+def _model(subdir: str, name: str) -> str:
+    return os.path.join(_MODELS_DIR, subdir, f"{name}.pt")
 
 
 @dataclass
@@ -132,7 +143,7 @@ class AppConfig:
 BIRDDOG = AppConfig(
     camera=CameraConfig(source_match="birddog"),
     video=VideoConfig(process_res=(480, 288)),
-    track=TrackConfig(model_path="yolo26s.pt"),
+    track=TrackConfig(model_path=_model("general", "north_american_wildlife")),
     pan=PanConfig(invert=True),   # BirdDog NDI pan axis is inverted relative to PTZ commands
     record=RecordConfig(duration_sec=30, fps=30, record_res=(1920, 1080)),
 )
@@ -140,7 +151,7 @@ BIRDDOG = AppConfig(
 BOLIN = AppConfig(
     camera=CameraConfig(source_match="bolin"),
     video=VideoConfig(process_res=(720, 488)),
-    track=TrackConfig(model_path="yolo26n.pt"),
+    track=TrackConfig(model_path=_model("general", "north_american_wildlife")),
     record=RecordConfig(duration_sec=20, fps=20, record_res=(1280, 720)),
 )
 
