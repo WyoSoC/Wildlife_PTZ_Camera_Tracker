@@ -81,7 +81,7 @@ export function ConnectScreen() {
             value={url}
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleConnect()}
-            placeholder="https://machine.tailXXXX.ts.net"
+            placeholder="https://machine.echo-tint.ts.net"
             className="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2
                        text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
           />

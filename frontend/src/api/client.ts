@@ -8,7 +8,7 @@ import type {
 // Call setServerConfig() from the ConnectScreen before any API call.
 // Defaults allow the Vite dev-server proxy to work transparently.
 
-let _serverUrl = ''   // e.g. "https://machine.tailXXXX.ts.net"
+let _serverUrl = ''   // e.g. "https://machine.echo-tint.ts.net"
 let _apiKey    = ''
 
 export function setServerConfig(url: string, apiKey: string): void {
