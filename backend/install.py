@@ -49,7 +49,7 @@ def detect_platform() -> str:
 
 PLATFORM_LABELS: dict[str, str] = {
     'jetson': 'NVIDIA Jetson  (aarch64, CUDA via JetPack 6)',
-    'cuda':   'NVIDIA GPU     (Linux/Windows, CUDA 12.6)',
+    'cuda':   'NVIDIA GPU     (Linux/Windows, PyTorch 2.12.1+cu126)',
     'macos':  'macOS          (Apple Silicon MPS or Intel CPU)',
     'rpi':    'Raspberry Pi   (aarch64/armv7l, CPU-only)',
     'cpu':    'Generic CPU    (x86_64, no GPU detected)',
