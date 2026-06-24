@@ -28,6 +28,8 @@ export function wsUrl(path: string): string {
 
 // ── Fetch helpers ──────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS = 5000
+
 function headers(extra?: Record<string, string>): Record<string, string> {
   const h: Record<string, string> = { ...extra }
   if (_apiKey) h['X-API-Key'] = _apiKey
@@ -35,7 +37,10 @@ function headers(extra?: Record<string, string>): Record<string, string> {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(_serverUrl + path, { headers: headers() })
+  const res = await fetch(_serverUrl + path, {
+    headers: headers(),
+    signal:  AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw new Error(`GET ${path} → ${res.status} ${res.statusText}`)
   return res.json() as Promise<T>
 }
@@ -45,6 +50,7 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
     method:  'POST',
     headers: headers(body != null ? { 'Content-Type': 'application/json' } : {}),
     body:    body != null ? JSON.stringify(body) : undefined,
+    signal:  AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`POST ${path} → ${res.status} ${res.statusText}`)
   return res.json() as Promise<T>
@@ -55,13 +61,18 @@ async function put<T>(path: string, body: unknown): Promise<T> {
     method:  'PUT',
     headers: headers({ 'Content-Type': 'application/json' }),
     body:    JSON.stringify(body),
+    signal:  AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`PUT ${path} → ${res.status} ${res.statusText}`)
   return res.json() as Promise<T>
 }
 
 async function del<T>(path: string): Promise<T> {
-  const res = await fetch(_serverUrl + path, { method: 'DELETE', headers: headers() })
+  const res = await fetch(_serverUrl + path, {
+    method:  'DELETE',
+    headers: headers(),
+    signal:  AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw new Error(`DELETE ${path} → ${res.status} ${res.statusText}`)
   return res.json() as Promise<T>
 }
