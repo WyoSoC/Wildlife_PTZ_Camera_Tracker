@@ -16,8 +16,9 @@ Restart=on-failure
 RestartSec=5
 
 Environment=PYTHONUNBUFFERED=1
-# NVIDIA cuda python packages live inside the venv; expose their libs to the dynamic linker.
-# Required by torch 2.5.0a0 (Jetson build) which links against these at runtime.
+# Jetson Orin only: torch 2.5.0a0 (NVIDIA JetPack build) links against libcusparseLt.so.0
+# at runtime.  JetPack does not ship this library; it lives in the Python venv instead.
+# On desktop CUDA systems the path below does not exist — the setting is harmless.
 Environment=LD_LIBRARY_PATH=/home/gojian/Code/Wildlife_PTZ_Camera_Tracker/.venv/lib/python3.10/site-packages/nvidia/cusparselt/lib
 
 # Give the GPU time to initialise on boot before the first request hits
