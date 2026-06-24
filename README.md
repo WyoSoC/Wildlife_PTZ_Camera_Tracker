@@ -143,7 +143,7 @@ python run_server.py --host 127.0.0.1     # bind to localhost only
 ```
 
 `--tailscale` runs `tailscale serve --bg http://localhost:9090` before starting uvicorn,
-so the app is reachable at `https://<machine>.tailXXXX.ts.net` without browser HTTPS warnings.
+so the app is reachable at `https://<machine>.<tailnet>.ts.net` without browser HTTPS warnings.
 
 > **Always run from the project root** (the directory containing `backend/` and `frontend/`).
 > Running from inside `backend/` will fail with `ModuleNotFoundError: No module named 'backend'`.
@@ -217,7 +217,7 @@ npm run build      # outputs to ../backend/static (see vite.config.ts)
 # 2. Run the server from the project root (serves the SPA automatically)
 cd ..
 python run_server.py                  # default: 0.0.0.0:9090
-python run_server.py --port 8080      # custom port
+python run_server.py --port 8888      # custom port
 ```
 
 > **Important:** always build the frontend **before** starting the server.
@@ -269,14 +269,92 @@ Then set `track.model_path = "yolov8n.engine"` in your profile or via `PUT /api/
 
 ## Tailscale (Remote HTTPS Access)
 
+Run once on the edge server after `tailscale up`:
+
 ```bash
-# Run once on the edge server after `tailscale up`:
-tailscale serve https / http://localhost:9090
+# Grant your user operator rights (needed to run tailscale serve without sudo)
+sudo tailscale set --operator=$USER
+
+# Proxy HTTPS on the Tailscale interface → local HTTP server
+tailscale serve --bg http://localhost:9090
 ```
 
-Your browser can then reach the app at `https://<machine-name>.tailXXXX.ts.net` from
-any device on the same Tailscale network with no port forwarding or firewall rules.
+The app is then reachable at `https://<machine>.<tailnet>.ts.net` from any device on the
+same Tailscale network with no port forwarding or firewall rules required.
 WebRTC ICE negotiation works over Tailscale peer addresses automatically.
+
+This configuration is **persistent** — Tailscale stores it in its state database and
+restores it automatically when the daemon starts, including after a reboot.
+
+To check or remove the serve config:
+
+```bash
+tailscale serve status
+tailscale serve --https=443 off   # remove
+```
+
+**Supported connection methods from the frontend Connect screen:**
+
+| Input | Protocol auto-selected | Notes |
+|---|---|---|
+| `192.168.x.x:9090` | `http://` | Direct LAN access |
+| `100.x.x.x:9090` | `http://` | Tailscale IP (direct, no TLS) |
+| `machine.tailnet.ts.net` | `https://` | Tailscale hostname via `tailscale serve` |
+
+---
+
+## Jetson Orin Nano — Boot-time Autostart
+
+This section documents the permanent deployment configuration on the Jetson Orin Nano
+(`jnano1.echo-tint.ts.net`).
+
+### Node.js installation
+
+The default Ubuntu apt package is too old. Install Node.js 20 via NodeSource:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+> **Do not use nvm on Jetson.** The nvm-downloaded Node.js v20 binaries segfault on
+> JetPack 6 (aarch64). The NodeSource apt package is built for the correct architecture.
+
+### Tailscale serve (persistent)
+
+Run once after `tailscale up` and initial setup:
+
+```bash
+sudo tailscale set --operator=$USER
+tailscale serve --bg http://localhost:9090
+```
+
+The serve config survives reboots — no further action needed.
+
+### systemd service
+
+The backend runs as a systemd service so it starts automatically at boot:
+
+```bash
+# Install (from the project root)
+sudo cp wildlife-tracker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable wildlife-tracker.service
+sudo systemctl start wildlife-tracker.service
+```
+
+Service management:
+
+```bash
+sudo systemctl status wildlife-tracker    # check
+sudo systemctl restart wildlife-tracker   # restart after a code update
+sudo systemctl stop wildlife-tracker      # stop
+journalctl -u wildlife-tracker -f         # follow logs
+```
+
+The service unit (`wildlife-tracker.service`) is checked into the repository.
+It runs as user `gojian`, binds to `0.0.0.0:9090`, and starts after
+`network-online.target` and `tailscaled.service`.
 
 ---
 
