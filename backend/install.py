@@ -69,9 +69,19 @@ def torch_install_args(platform_id: str) -> list[str]:
     base = ['torch', 'torchvision']
 
     if platform_id == 'jetson':
-        # JetPack 6 / CUDA 12.6 wheels — official PyTorch index for aarch64+cu126.
-        # (pypi.jetson-ai-lab.dev no longer resolves as of mid-2026.)
-        return base + ['--index-url', 'https://download.pytorch.org/whl/cu126']
+        # JetPack 6.1 (R36.4, CUDA 12.6) — NVIDIA's official aarch64 wheels.
+        # These include SM 8.7 (Jetson Orin) which the standard PyPI/whl builds omit.
+        # pypi.jetson-ai-lab.dev is down as of mid-2026; use NVIDIA developer downloads.
+        # torch 2.5.0a0 NV24.08 ←→ torchvision 0.20.0 (cu124 aarch64 build; NMS must stay on CPU).
+        torch_url = (
+            "https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/"
+            "torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl"
+        )
+        tv_url = (
+            "https://download-r2.pytorch.org/whl/cu124/"
+            "torchvision-0.20.0-cp310-cp310-linux_aarch64.whl"
+        )
+        return [torch_url, tv_url, '--no-deps']
 
     if platform_id == 'cuda':
         # Desktop / laptop NVIDIA — CUDA 12.4 wheels.
