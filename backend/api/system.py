@@ -5,6 +5,7 @@ Also exposes NTP time-sync control.
 from __future__ import annotations
 import asyncio
 import logging
+import os
 import platform
 
 from fastapi import APIRouter, HTTPException
@@ -29,6 +30,35 @@ try:
 except Exception:
     pynvml = None  # type: ignore[assignment]
     _NVML = False
+
+
+def _jetson_gpu() -> dict | None:
+    """Read Jetson integrated GPU metrics from sysfs (fallback when NVML unavailable)."""
+    load_path = '/sys/devices/gpu.0/load'
+    if not os.path.exists(load_path):
+        return None
+    try:
+        load_pct = int(open(load_path).read().strip()) / 10.0
+        temp_c: float | None = None
+        thermal_base = '/sys/class/thermal'
+        if os.path.isdir(thermal_base):
+            for zone in sorted(os.listdir(thermal_base)):
+                type_f = os.path.join(thermal_base, zone, 'type')
+                temp_f = os.path.join(thermal_base, zone, 'temp')
+                if os.path.exists(type_f) and os.path.exists(temp_f):
+                    if 'GPU' in open(type_f).read().upper():
+                        temp_c = int(open(temp_f).read().strip()) / 1000.0
+                        break
+        return {
+            'name':             'NVIDIA Jetson (integrated GPU)',
+            'utilization_pct':  round(load_pct, 1),
+            'memory_used_gb':   None,
+            'memory_total_gb':  None,
+            'temperature_c':    temp_c,
+            'power_watts':      None,
+        }
+    except Exception:
+        return None
 
 
 @router.get("/metrics")
@@ -72,6 +102,9 @@ async def get_metrics():
             }
         except Exception as exc:
             logger.debug("NVML metrics error: %s", exc)
+
+    if result["gpu"] is None:
+        result["gpu"] = _jetson_gpu()
 
     return result
 

@@ -178,9 +178,9 @@ export interface SystemMetrics {
   gpu: {
     name:              string
     utilization_pct:   number
-    memory_used_gb:    number
-    memory_total_gb:   number
-    temperature_c:     number
+    memory_used_gb:    number | null
+    memory_total_gb:   number | null
+    temperature_c:     number | null
     power_watts:       number | null
   } | null
 }

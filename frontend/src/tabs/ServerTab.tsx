@@ -135,15 +135,24 @@ export function ServerTab() {
                 GPU — {metrics.gpu.name}
               </h3>
               <Gauge label="GPU Utilisation" value={metrics.gpu.utilization_pct} max={100} unit="%" color="green" />
-              <Gauge
-                label="VRAM"
-                value={metrics.gpu.memory_used_gb}
-                max={metrics.gpu.memory_total_gb}
-                unit="GB"
-                color="teal"
-              />
+              {metrics.gpu.memory_used_gb != null && metrics.gpu.memory_total_gb != null && (
+                <>
+                  <Gauge
+                    label="VRAM"
+                    value={metrics.gpu.memory_used_gb}
+                    max={metrics.gpu.memory_total_gb}
+                    unit="GB"
+                    color="teal"
+                  />
+                  <div className="text-xs text-white/30 text-right">
+                    {metrics.gpu.memory_used_gb.toFixed(1)} / {metrics.gpu.memory_total_gb.toFixed(1)} GB
+                  </div>
+                </>
+              )}
               <div className="flex gap-6 pt-1">
-                <StatRow label="Temp" value={`${metrics.gpu.temperature_c} °C`} />
+                {metrics.gpu.temperature_c != null && (
+                  <StatRow label="Temp" value={`${metrics.gpu.temperature_c} °C`} />
+                )}
                 {metrics.gpu.power_watts != null && (
                   <StatRow label="Power" value={`${metrics.gpu.power_watts} W`} />
                 )}
@@ -152,8 +161,8 @@ export function ServerTab() {
           ) : (
             <div className="bg-surface-panel border border-surface-border rounded-xl p-4">
               <p className="text-xs text-white/30">
-                No NVIDIA GPU detected — GPU metrics unavailable.<br />
-                On Apple Silicon, power/thermal data requires a separate tool.
+                GPU metrics unavailable.
+                {info?.device === 'mps' && ' On Apple Silicon, power/thermal data requires a separate tool (e.g. asitop).'}
               </p>
             </div>
           )}
