@@ -3,6 +3,8 @@ import type { ServerConfig } from '../types'
 import { useServer } from '../context/ServerContext'
 import { api, setServerConfig } from '../api/client'
 
+const TAILSCALE_DOMAIN = 'echo-tint.ts.net'
+
 export function ConnectScreen() {
   const { connect, savedServers } = useServer()
 
@@ -15,6 +17,10 @@ export function ConnectScreen() {
   const normalise = (raw: string): string => {
     let u = raw.trim()
     if (!u) return u
+    // Bare name (no dots, colons, or slashes) → expand to Tailscale FQDN
+    if (!/[.:/]/.test(u)) {
+      u = `${u}.${TAILSCALE_DOMAIN}`
+    }
     if (!/^https?:\/\//i.test(u)) {
       const hostname = u.split('/')[0].split(':')[0]
       const isLocal =
@@ -24,11 +30,13 @@ export function ConnectScreen() {
         /^10\./.test(hostname)  ||
         /^192\.168\./.test(hostname) ||
         /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
-        /^100\./.test(hostname)    // Tailscale CGNAT range (100.64.0.0/10)
+        /^100\./.test(hostname)
       u = (isLocal ? 'http://' : 'https://') + u
     }
     return u.replace(/\/$/, '')
   }
+
+  const resolvedUrl = normalise(url)
 
   const testConnection = async () => {
     const u = normalise(url)
@@ -76,20 +84,24 @@ export function ConnectScreen() {
         </h2>
 
         <div className="space-y-2">
-          <label className="text-xs text-white/50">Server URL</label>
+          <label className="text-xs text-white/50">Server</label>
           <input
             type="text"
             value={url}
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleConnect()}
-            placeholder="https://machine.echo-tint.ts.net"
+            placeholder="cortex"
             className="w-full bg-surface-base border border-surface-border rounded-lg px-3 py-2
                        text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
           />
+          {url.trim() && (
+            <p className="text-xs text-white/40 font-mono truncate">
+              → {resolvedUrl}
+            </p>
+          )}
           <p className="text-xs text-white/30">
-            Use your Tailscale hostname for remote access, or{' '}
-            <code className="text-white/50">localhost:PORT</code> for local connections.
-            <code className="text-white/50"> http://</code> is used automatically for local addresses.
+            Enter a machine name (e.g. <code className="text-white/50">cortex</code>) or a full address.
+            Local addresses use <code className="text-white/50">http://</code> automatically.
           </p>
         </div>
 
