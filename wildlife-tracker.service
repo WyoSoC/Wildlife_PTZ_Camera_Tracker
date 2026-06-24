@@ -1,0 +1,24 @@
+[Unit]
+Description=Wildlife PTZ Camera Tracker backend
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gojian
+Group=gojian
+WorkingDirectory=/home/gojian/Code/Wildlife_PTZ_Camera_Tracker
+ExecStart=/home/gojian/Code/Wildlife_PTZ_Camera_Tracker/.venv/bin/uvicorn \
+    backend.main:app \
+    --host 0.0.0.0 \
+    --port 9090
+Restart=on-failure
+RestartSec=5
+
+Environment=PYTHONUNBUFFERED=1
+
+# Give the GPU time to initialise on boot before the first request hits
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target
