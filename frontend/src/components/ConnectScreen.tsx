@@ -23,7 +23,8 @@ export function ConnectScreen() {
         /^127\./.test(hostname) ||
         /^10\./.test(hostname)  ||
         /^192\.168\./.test(hostname) ||
-        /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+        /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+        /^100\./.test(hostname)    // Tailscale CGNAT range (100.64.0.0/10)
       u = (isLocal ? 'http://' : 'https://') + u
     }
     return u.replace(/\/$/, '')
