@@ -78,15 +78,21 @@ NDI SDK is optional — the server starts without it and supports Reolink RTSP c
 
 ### Edge server
 
-- Python 3.11+
+- Python 3.10 *(Jetson)* or 3.11+ *(other platforms)*
 - [NDI Tools SDK](https://ndi.video/for-developers/ndi-sdk/) wheel *(optional — required only for NDI cameras)*
 - [Tailscale](https://tailscale.com/) *(for remote HTTPS access)*
 - Node.js 20+ and npm *(build-time only — not needed at runtime)*
 
-**Ubuntu 22.04 quick-start** (if Python 3.11 or Node.js are not already installed):
+> **Jetson note:** the NVIDIA JetPack PyTorch wheel is compiled for **Python 3.10** (cp310).
+> Use `python3.10 -m venv .venv` on Jetson, not python3.11.
+
+**Ubuntu 22.04 quick-start** (if Python or Node.js are not already installed):
 
 ```bash
-# Python 3.11 + venv
+# Python 3.10 venv support (Jetson) — python3.10 is already the system default
+sudo apt install python3.10-venv
+
+# Python 3.11 + venv (non-Jetson Linux)
 sudo apt install python3.11 python3.11-venv
 
 # Node.js 20+ via NodeSource (the Ubuntu default is too old)
@@ -98,7 +104,7 @@ Platform-specific GPU prerequisites:
 
 | Platform | Prerequisite |
 |---|---|
-| Jetson (JetPack 6) | JetPack installs CUDA, cuDNN automatically |
+| Jetson (JetPack 6) | See **Jetson CUDA setup** section below — extra steps required |
 | NVIDIA Linux | [CUDA Toolkit 12.x](https://developer.nvidia.com/cuda-downloads) + driver ≥ 525 |
 | Apple Silicon | No extra install — MPS ships with macOS + PyTorch |
 | Raspberry Pi / CPU | No GPU prerequisite |
@@ -110,13 +116,91 @@ Use a USB or Bluetooth gamepad for joystick control (DualSense, Xbox, generic HI
 
 ---
 
+## NDI Advanced SDK v6 — Linux Installation
+
+The NDI Advanced SDK v6 provides the native libraries and headers used by the backend
+for NDI source discovery, frame capture, and PTZ control on Linux.
+
+### Installation (performed on Jetson Orin Nano, 2026-06-24)
+
+```bash
+# 1. Download the installer from NDI
+wget -O ~/Software/Install_NDI_Advanced_SDK_v6_Linux.tar.gz \
+  "https://www.dropbox.com/scl/fi/pw03okfjsgicfzly6cgl9/Install_NDI_Advanced_SDK_v6_Linux.tar.gz?rlkey=da64gzvqlf8gmeejddztbtf8h&st=mfvmy4cs&dl=1"
+
+# 2. Extract the self-installing shell script
+tar -xzf ~/Software/Install_NDI_Advanced_SDK_v6_Linux.tar.gz -C ~/Software/
+
+# 3. Run the installer (accept the license agreement when prompted)
+echo "y" | ~/Software/Install_NDI_Advanced_SDK_v6_Linux.sh
+
+# 4. Rename the output directory for convenience
+mv ~/Software/"NDI Advanced SDK for Linux" ~/Software/NDI_Advanced_SDK_for_Linux
+```
+
+The installer extracts the SDK to `~/Software/NDI_Advanced_SDK_for_Linux/`, which contains:
+
+- `lib/` — native `.so` libraries (aarch64 and x86_64 variants)
+- `include/` — C/C++ headers (`Processing.NDI.*.h`)
+- `examples/` — C++ send/receive/find example programs
+- `licenses/` — third-party license notices
+
+### System-wide installation (Jetson Orin Nano — aarch64, performed 2026-06-24)
+
+After extracting, the SDK libraries, headers, and binaries are installed into standard
+system paths so the backend and any compiled examples can find them without extra flags.
+
+```bash
+SDK=~/Software/NDI_Advanced_SDK_for_Linux
+ARCH=aarch64-newtek-linux-gnu   # correct variant for Jetson / generic aarch64 Linux
+
+# Shared library (versioned + unversioned symlinks)
+sudo cp  $SDK/lib/$ARCH/libndi_advanced.so.6.3.2  /usr/local/lib/
+sudo ln -sf /usr/local/lib/libndi_advanced.so.6.3.2  /usr/local/lib/libndi_advanced.so.6
+sudo ln -sf /usr/local/lib/libndi_advanced.so.6.3.2  /usr/local/lib/libndi_advanced.so
+
+# Headers
+sudo cp $SDK/include/Processing.NDI.*.h  /usr/local/include/
+
+# Utility binaries
+sudo cp $SDK/bin/$ARCH/ndi-benchmark \
+        $SDK/bin/$ARCH/ndi-discovery-server \
+        $SDK/bin/$ARCH/ndi-embedded-bridge \
+        $SDK/bin/$ARCH/ndi-free-audio \
+        $SDK/bin/$ARCH/ndi-record \
+        /usr/local/bin/
+
+# Refresh linker cache
+sudo ldconfig
+```
+
+Verify with:
+
+```bash
+ldconfig -p | grep ndi_advanced   # should show libndi_advanced.so.6 → /usr/local/lib/
+ndi-benchmark --help              # quick sanity check
+```
+
+Installed paths summary:
+
+| Artifact | Destination |
+|---|---|
+| `libndi_advanced.so.6.3.2` + symlinks | `/usr/local/lib/` |
+| `Processing.NDI.*.h` headers | `/usr/local/include/` |
+| `ndi-benchmark`, `ndi-discovery-server`, `ndi-embedded-bridge`, `ndi-free-audio`, `ndi-record` | `/usr/local/bin/` |
+
+---
+
 ## Running the Server
 
 ### First time
 
 ```bash
-# 1. Create and activate a virtual environment (Python 3.11+)
-python3.11 -m venv .venv && source .venv/bin/activate
+# 1. Create and activate a virtual environment
+#    Jetson (JetPack 6): use python3.10 — the NVIDIA PyTorch wheel is cp310-only
+#    All other platforms: python3.11 or newer
+python3.10 -m venv .venv && source .venv/bin/activate   # Jetson
+# python3.11 -m venv .venv && source .venv/bin/activate  # non-Jetson
 
 # 2. Install backend dependencies (auto-detects platform / GPU)
 cd backend && python install.py && cd ..
@@ -160,7 +244,9 @@ dependencies from `requirements.txt`.
 
 ```bash
 # Run from the project root (the directory that contains backend/ and frontend/)
-python3.11 -m venv .venv && source .venv/bin/activate
+# Jetson: use python3.10 (cp310 — NVIDIA PyTorch wheel requirement)
+python3.10 -m venv .venv && source .venv/bin/activate   # Jetson
+# python3.11 -m venv .venv && source .venv/bin/activate  # non-Jetson
 
 cd backend
 python install.py          # detects platform and installs everything
@@ -303,10 +389,135 @@ tailscale serve --https=443 off   # remove
 
 ---
 
+## Jetson CUDA Setup (JetPack 6 / Ubuntu 22.04)
+
+The standard JetPack base image (`nvidia-l4t-cuda`) provides only the CUDA driver stub —
+not the full toolkit needed by PyTorch. These extra steps are required once per machine.
+
+### 1. Install CUDA Toolkit 12.6 and cuDNN 9
+
+```bash
+sudo apt install -y cuda-toolkit-12-6 libcudnn9-cuda-12
+```
+
+This installs headers, libraries (libcudart, libcublas, etc.) and cuDNN 9 into
+`/usr/local/cuda-12.6/`.
+
+### 2. Install cuSPARSELt (not in Jetson apt repos)
+
+The Jetson PyTorch wheel requires `libcusparseLt.so.0`, which is not packaged by
+NVIDIA for aarch64 via apt. Install it from PyPI and then copy it to a stable system path:
+
+```bash
+# Activate venv first
+source .venv/bin/activate
+
+# Download the wheel (bundles libcusparseLt.so.0 for aarch64)
+pip install nvidia-cusparselt-cu12
+
+# Copy to a stable system location
+sudo cp .venv/lib/python3.10/site-packages/nvidia/cusparselt/lib/libcusparseLt.so.0 \
+    /usr/local/lib/
+```
+
+### 3. Install FFmpeg 7 (required for NDI|HX — H.264/H.265 compressed streams)
+
+The `ndi-python` library uses `libavcodec.so.61` (FFmpeg 7.x) at runtime to decode
+**NDI|HX** streams. These are compressed H.264/H.265 sources — identifiable by the `_HX`
+suffix in the NDI source name (e.g. `BOLIN-EXU248N-A2 (CAM_192.168.67.49_HX)`).
+
+Ubuntu 22.04 ships only FFmpeg 4.4 (`libavcodec.so.58`). Install FFmpeg 7 from the
+Jellyfin repo, which provides arm64 builds for Jammy:
+
+```bash
+# Add Jellyfin repo
+curl -fsSL https://repo.jellyfin.org/ubuntu/jellyfin_team.gpg.key \
+    | sudo gpg --dearmor -o /usr/share/keyrings/jellyfin.gpg
+echo "deb [arch=arm64 signed-by=/usr/share/keyrings/jellyfin.gpg] \
+    https://repo.jellyfin.org/ubuntu jammy main" \
+    | sudo tee /etc/apt/sources.list.d/jellyfin.list
+
+sudo apt update
+sudo apt install -y jellyfin-ffmpeg7
+
+# Register jellyfin's FFmpeg 7 libs with the linker
+# (sonames differ from Ubuntu's FFmpeg 4.4 — no conflict)
+echo "/usr/lib/jellyfin-ffmpeg/lib" \
+    | sudo tee /etc/ld.so.conf.d/jellyfin-ffmpeg7.conf
+sudo ldconfig
+```
+
+Verify:
+```bash
+ldconfig -p | grep "libavcodec.so.61"
+# Expected: libavcodec.so.61 => /usr/lib/jellyfin-ffmpeg/lib/libavcodec.so.61
+```
+
+> **Note:** Cameras that advertise a `_HB` source (high-bandwidth, uncompressed) will
+> work without this step. This is only required for cameras that exclusively advertise
+> `_HX` (e.g. Bolin cameras in HX mode).
+
+### 5. Register CUDA libraries with the dynamic linker
+
+```bash
+# Create conf file pointing to CUDA 12.6 libs and libcusparseLt
+sudo tee /etc/ld.so.conf.d/ndi-cuda-extras.conf <<'EOF'
+/usr/local/lib
+/usr/local/cuda-12.6/lib64
+EOF
+
+sudo ldconfig
+```
+
+Verify:
+
+```bash
+ldconfig -p | grep "cusparseLt\|cudart"
+# Expected:
+#   libcusparseLt.so.0  => /usr/local/lib/libcusparseLt.so.0
+#   libcudart.so.12     => /usr/local/cuda/targets/aarch64-linux/lib/libcudart.so.12
+```
+
+### 6. Create the venv with Python 3.10
+
+The NVIDIA Jetson PyTorch wheel is built for **cp310 only** — Python 3.11 is incompatible.
+
+```bash
+python3.10 -m venv .venv
+```
+
+### 7. Run the backend installer
+
+After the venv is created, run `install.py` as normal. It detects the Jetson platform,
+installs the JetPack-specific PyTorch wheel, and applies the necessary venv patches.
+
+> **Note:** `requirements.txt` will re-install the generic aarch64 torch as a side-effect
+> of dependency resolution. Re-install the Jetson wheel immediately after:
+>
+> ```bash
+> pip install --force-reinstall --no-deps \
+>   "https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl"
+> ```
+>
+> Also pin NumPy to `<2.0` — the Jetson torch was compiled against NumPy 1.x:
+> ```bash
+> pip install "numpy<2.0"
+> ```
+
+### 8. Verify CUDA
+
+```bash
+source .venv/bin/activate
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_arch_list())"
+# Expected: True [..., 'sm_87']
+```
+
+---
+
 ## Jetson Orin Nano — Boot-time Autostart
 
 This section documents the permanent deployment configuration on the Jetson Orin Nano
-(`jnano1.echo-tint.ts.net`).
+(`jnano2.echo-tint.ts.net`, performed 2026-06-24).
 
 ### Node.js installation
 

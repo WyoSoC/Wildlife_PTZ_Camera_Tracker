@@ -295,8 +295,12 @@ class TrackLoop:
 
                 # ── Recording ─────────────────────────────────────────────────
                 if session.recording.is_active and not recorder.is_active:
-                    recorder.start()
-                    session.recording.total_sec = cfg.record.duration_sec
+                    try:
+                        recorder.start()
+                        session.recording.total_sec = cfg.record.duration_sec
+                    except Exception:
+                        logger.exception("Recorder failed to start")
+                        session.recording.is_active = False
 
                 if recorder.is_active:
                     done = recorder.tick(frame, now)

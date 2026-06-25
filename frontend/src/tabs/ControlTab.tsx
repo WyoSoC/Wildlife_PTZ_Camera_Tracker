@@ -857,6 +857,43 @@ export function ControlTab({ ws, cameraId }: Props) {
             </div>
           </Card>
 
+          {/* Mode */}
+          <Card title="Mode">
+            <div className="flex gap-2">
+              {(['manual', 'auto_track'] as const).map(m => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={[
+                    'flex-1 py-2 text-xs font-medium rounded border transition-colors',
+                    mode === m
+                      ? m === 'manual'
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-green-700 border-green-600 text-white'
+                      : 'bg-surface-raised border-surface-border text-white/40 hover:text-white/70',
+                  ].join(' ')}>
+                  {m === 'auto_track' && <Crosshair size={11} className="inline mr-1" />}
+                  {m === 'manual' ? 'Manual' : 'Auto-track'}
+                </button>
+              ))}
+            </div>
+
+            {mode === 'auto_track' && (
+              <div className="mt-2 flex items-center justify-center gap-1.5">
+                {scanPhase === 'locked'   && <>
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-xs text-green-400">Target Locked</span>
+                </>}
+                {scanPhase === 'scanning' && <>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-xs text-amber-400">Scanning…</span>
+                </>}
+                {scanPhase === 'idle'     && <>
+                  <span className="w-2 h-2 rounded-full bg-white/20" />
+                  <span className="text-xs text-white/30">Idle</span>
+                </>}
+              </div>
+            )}
+          </Card>
+
           {/* Joystick */}
           <Card>
             <div className="space-y-2.5">
@@ -1039,7 +1076,7 @@ export function ControlTab({ ws, cameraId }: Props) {
             </div>
           </Card>
 
-          {config && (
+          {config && mode === 'auto_track' && (
             <>
               <TrackingTuning config={config} patchConfig={patchConfig} SaveDot={SaveDot} />
               <BehaviourPanel config={config} patchConfig={patchConfig} SaveDot={SaveDot}
@@ -1104,43 +1141,6 @@ export function ControlTab({ ws, cameraId }: Props) {
                 </Button>
               </div>
             </div>
-          </Card>
-
-          <Card title="Mode">
-            <div className="flex gap-2">
-              {(['manual', 'auto_track'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)}
-                  className={[
-                    'flex-1 py-2 text-xs font-medium rounded border transition-colors',
-                    mode === m
-                      ? m === 'manual'
-                        ? 'bg-blue-600 border-blue-500 text-white'
-                        : 'bg-green-700 border-green-600 text-white'
-                      : 'bg-surface-raised border-surface-border text-white/40 hover:text-white/70',
-                  ].join(' ')}>
-                  {m === 'auto_track' && <Crosshair size={11} className="inline mr-1" />}
-                  {m === 'manual' ? 'Manual' : 'Auto-track'}
-                </button>
-              ))}
-            </div>
-
-            {/* Scan phase indicator */}
-            {mode === 'auto_track' && (
-              <div className="mt-2 flex items-center justify-center gap-1.5">
-                {scanPhase === 'locked'   && <>
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-xs text-green-400">Target Locked</span>
-                </>}
-                {scanPhase === 'scanning' && <>
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-xs text-amber-400">Scanning…</span>
-                </>}
-                {scanPhase === 'idle'     && <>
-                  <span className="w-2 h-2 rounded-full bg-white/20" />
-                  <span className="text-xs text-white/30">Idle</span>
-                </>}
-              </div>
-            )}
           </Card>
 
           <ProfilesCard

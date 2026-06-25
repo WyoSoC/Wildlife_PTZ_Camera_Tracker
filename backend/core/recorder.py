@@ -35,14 +35,18 @@ def _make_ffmpeg_cmd(path: str, width: int, height: int, fps: int) -> list[str]:
     x264  = base + ["-c:v", "libx264",    "-preset", "fast", "-crf", "23", path]
 
     # Probe NVENC availability with a 0-frame encode
-    probe = subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi", "-i", "nullsrc=s=64x64:d=0",
-         "-c:v", "h264_nvenc", "-f", "null", "-"],
-        capture_output=True,
-    )
-    if probe.returncode == 0:
-        logger.info("Recorder: using h264_nvenc (NVENC)")
-        return nvenc
+    try:
+        probe = subprocess.run(
+            ["ffmpeg", "-y", "-f", "lavfi", "-i", "nullsrc=s=64x64:d=0",
+             "-c:v", "h264_nvenc", "-f", "null", "-"],
+            capture_output=True,
+        )
+        if probe.returncode == 0:
+            logger.info("Recorder: using h264_nvenc (NVENC)")
+            return nvenc
+    except FileNotFoundError:
+        logger.error("Recorder: ffmpeg not found in PATH — recording unavailable")
+        raise
     logger.info("Recorder: NVENC unavailable, using libx264")
     return x264
 
