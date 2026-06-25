@@ -31,6 +31,10 @@ except Exception:
     pynvml = None  # type: ignore[assignment]
     _NVML = False
 
+# EMA smoothing for Jetson sysfs GPU utilisation (α=0.2 → ~9-sample time constant)
+_GPU_UTIL_EMA: float | None = None
+_GPU_UTIL_ALPHA = 0.2
+
 
 def _jetson_gpu() -> dict | None:
     """Read Jetson integrated GPU metrics from sysfs (fallback when NVML unavailable)."""
@@ -50,7 +54,11 @@ def _jetson_gpu() -> dict | None:
     if load_path is None:
         return None
     try:
-        load_pct = int(open(load_path).read().strip()) / 10.0
+        global _GPU_UTIL_EMA
+        raw_pct  = int(open(load_path).read().strip()) / 10.0
+        _GPU_UTIL_EMA = raw_pct if _GPU_UTIL_EMA is None \
+            else _GPU_UTIL_ALPHA * raw_pct + (1 - _GPU_UTIL_ALPHA) * _GPU_UTIL_EMA
+        load_pct = _GPU_UTIL_EMA
         temp_c: float | None = None
         thermal_base = '/sys/class/thermal'
         if os.path.isdir(thermal_base):
