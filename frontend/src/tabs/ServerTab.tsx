@@ -3,11 +3,18 @@ import { api } from '../api/client'
 import { useServer } from '../context/ServerContext'
 import type { SystemInfo, SystemMetrics } from '../types'
 
+const GAUGE_COLORS: Record<string, string> = {
+  blue:   'bg-blue-500',
+  purple: 'bg-purple-500',
+  green:  'bg-green-500',
+  teal:   'bg-teal-500',
+}
+
 function Gauge({ label, value, max, unit, color = 'blue' }: {
   label: string; value: number; max: number; unit: string; color?: string
 }) {
   const pct = Math.min(100, Math.round((value / max) * 100))
-  const barColor = pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-amber-500' : `bg-${color}-500`
+  const barColor = pct > 85 ? 'bg-red-500' : pct > 65 ? 'bg-amber-500' : (GAUGE_COLORS[color] ?? 'bg-blue-500')
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-white/60">
