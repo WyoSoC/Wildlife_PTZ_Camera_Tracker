@@ -928,7 +928,7 @@ export function ControlTab({ ws, cameraId }: Props) {
               )}
               {gamepad.connected && (
                 <div className="space-y-1.5 pt-1 border-t border-surface-border">
-                  <AxisBar label="Pan"  value={gamepad.pan} />
+                  <AxisBar label="Pan"  value={-gamepad.pan} />
                   <AxisBar label="Tilt" value={gamepad.tilt} />
                   <AxisBar label="Zoom" value={gamepad.zoom} />
                 </div>

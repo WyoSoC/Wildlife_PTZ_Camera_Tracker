@@ -34,8 +34,20 @@ except Exception:
 
 def _jetson_gpu() -> dict | None:
     """Read Jetson integrated GPU metrics from sysfs (fallback when NVML unavailable)."""
-    load_path = '/sys/devices/gpu.0/load'
-    if not os.path.exists(load_path):
+    import glob
+    # GPU load sysfs path differs by Jetson platform: Orin uses a bus-addressed path
+    load_path: str | None = None
+    for pattern in (
+        '/sys/devices/gpu.0/load',
+        '/sys/devices/platform/bus@0/*.gpu/load',
+        '/sys/devices/platform/*/*.gpu/load',
+        '/sys/devices/platform/*.gpu/load',
+    ):
+        matches = glob.glob(pattern)
+        if matches:
+            load_path = matches[0]
+            break
+    if load_path is None:
         return None
     try:
         load_pct = int(open(load_path).read().strip()) / 10.0
@@ -46,11 +58,24 @@ def _jetson_gpu() -> dict | None:
                 type_f = os.path.join(thermal_base, zone, 'type')
                 temp_f = os.path.join(thermal_base, zone, 'temp')
                 if os.path.exists(type_f) and os.path.exists(temp_f):
-                    if 'GPU' in open(type_f).read().upper():
-                        temp_c = int(open(temp_f).read().strip()) / 1000.0
+                    zone_type = open(type_f).read().strip().lower()
+                    if 'gpu' in zone_type:
+                        raw = open(temp_f).read().strip()
+                        if raw:
+                            temp_c = int(raw) / 1000.0
                         break
+
+        gpu_name = 'NVIDIA Jetson (integrated GPU)'
+        if _NVML:
+            try:
+                h = pynvml.nvmlDeviceGetHandleByIndex(0)
+                n = pynvml.nvmlDeviceGetName(h)
+                gpu_name = n.decode() if isinstance(n, bytes) else n
+            except Exception:
+                pass
+
         return {
-            'name':             'NVIDIA Jetson (integrated GPU)',
+            'name':             gpu_name,
             'utilization_pct':  round(load_pct, 1),
             'memory_used_gb':   None,
             'memory_total_gb':  None,
